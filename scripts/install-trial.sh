@@ -6,7 +6,8 @@ set -euo pipefail
 #
 #  ⚠️  ЭТО ОТДЕЛЬНЫЙ УСТАНОВЩИК. Не связан с install-agents.sh.
 #      Ставит OpenClaw движок + ОДНОГО агента-ассистента (демо).
-#      БЕЗ курс-токена — бесплатная тестовая установка для лидогенерации.
+#      Бесплатно, но ПО ТОКЕНУ: TRY-токен выдаёт @AITeamVIPBot (лид-
+#      контроль). Тот же Ed25519-механизм, что в платном установщике.
 #
 #  Агент-ассистент каждые 2-3 сообщения мягко предлагает полную версию
 #  курса со ссылкой https://serditov.tonytrue.pro/ (логика в шаблоне
@@ -31,7 +32,7 @@ if (( BASH_VERSINFO[0] < 4 )); then
   # bash 4+ не найден — продолжаем на текущем 3.2 (код совместим).
 fi
 
-TRIAL_VERSION="2026.05.28.13"
+TRIAL_VERSION="2026.05.28.14"
 TRIAL_COMMIT="__COMMIT_PLACEHOLDER__"
 COURSE_URL="https://serditov.tonytrue.pro/"
 REPO_RAW="https://raw.githubusercontent.com/tonytrue92-beep/openclaw-test-drive/main"
@@ -69,11 +70,113 @@ export NVM_DIR="$HOME/.nvm"
   done
 }
 
+# ═══════════════════════════════════════════════════════════════
+#  TRY-токен доступа (тот же механизм, что в платном install-agents.sh)
+# ═══════════════════════════════════════════════════════════════
+#
+# Формат:  TRY-<hash16>-<tg_id>-<подпись_b64url>
+# Подпись: Ed25519 над "TRY|<hash16>|<tg_id>" приватным ключом @AITeamVIPBot.
+# Проверяется встроенным ПУБЛИЧНЫМ ключом (тот же, что у платных тарифов) —
+# приватный есть только у бота. Сеть для проверки не нужна.
+#
+# Двухфазно (т.к. node ставится только на Шаге 1):
+#   • Фаза A (до установки) — формат + извлечение TG_ID. Мгновенно,
+#     блокирует пустой/мусорный токен ДО любой установки.
+#   • Фаза B (после установки node) — крипто-проверка подписи через node.
+TRIAL_TOKEN_CACHE="$HOME/.openclaw/trial-token"
+TRIAL_PUBLIC_KEY_PEM=$(cat <<'PEMEOF'
+-----BEGIN PUBLIC KEY-----
+MCowBQYDK2VwAyEAQIjPPB5LB1R3outrY1HMaVRVUB2tkDhHtpC8LLJ+8rA=
+-----END PUBLIC KEY-----
+PEMEOF
+)
+TRIAL_TOKEN_PRESET="${TRIAL_TOKEN:-}"   # из env TRIAL_TOKEN или флага --token
+TRIAL_TOKEN=""        # валидный токен (заполняется гейтом)
+TRIAL_TG_ID=""        # TG ID, зашитый в токен (для allowlist)
+
+# Санитизация (пробелы / юникод-тире / кавычки) — как wave 17 в agents-pack.
+_trial_sanitize_token() {
+  local t="$1"
+  t=$(printf '%s' "$t" | tr -d '[:space:]')
+  t="${t//—/-}"; t="${t//–/-}"; t="${t//‐/-}"; t="${t//‑/-}"
+  t="${t//\"/}"; t="${t//\'/}"
+  printf '%s' "$t"
+}
+
+# Формат-проверка (без крипто). Set TRIAL_TG_ID. 0 = форма верна.
+_trial_token_format_ok() {
+  local t="$1"
+  if [[ "$t" =~ ^TRY-[A-F0-9]{16}-([0-9]{5,15})-[A-Za-z0-9_-]{80,100}$ ]]; then
+    TRIAL_TG_ID="${BASH_REMATCH[1]}"
+    return 0
+  fi
+  return 1
+}
+
+# Крипто-проверка Ed25519 (нужен node — гарантирован после Шага 1).
+# 0 = подпись валидна, иначе != 0.
+_trial_token_verify_sig() {
+  local t="$1"
+  local hash_part tg_part sig_part
+  hash_part=$(printf '%s' "$t" | cut -d'-' -f2)
+  tg_part=$(printf '%s' "$t" | cut -d'-' -f3)
+  sig_part=$(printf '%s' "$t" | cut -d'-' -f4-)
+  command -v node >/dev/null 2>&1 || return 2
+  TRIAL_PUB="$TRIAL_PUBLIC_KEY_PEM" \
+  TRIAL_PAYLOAD="TRY|${hash_part}|${tg_part}" \
+  TRIAL_SIG="$sig_part" node - >/dev/null 2>&1 <<'JS'
+const crypto = require('crypto');
+try {
+  const pk = crypto.createPublicKey(process.env.TRIAL_PUB);
+  const payload = Buffer.from(process.env.TRIAL_PAYLOAD || '', 'utf8');
+  const sig = Buffer.from(process.env.TRIAL_SIG || '', 'base64url');
+  process.exit(crypto.verify(null, payload, pk, sig) ? 0 : 1);
+} catch { process.exit(1); }
+JS
+}
+
+# Фаза A: получить токен (флаг/env → кэш → prompt) + формат-проверка.
+# 0 = форма ок (TRIAL_TOKEN + TRIAL_TG_ID заполнены).
+_trial_token_gate_format() {
+  local raw=""
+  if [[ -n "$TRIAL_TOKEN_PRESET" ]]; then
+    raw="$TRIAL_TOKEN_PRESET"
+  elif [[ -f "$TRIAL_TOKEN_CACHE" ]]; then
+    raw=$(cat "$TRIAL_TOKEN_CACHE" 2>/dev/null || true)
+  fi
+  raw=$(_trial_sanitize_token "$raw")
+  if [[ -n "$raw" ]] && _trial_token_format_ok "$raw"; then
+    TRIAL_TOKEN="$raw"; return 0
+  fi
+  local attempts=0 t
+  while [[ $attempts -lt 3 ]]; do
+    attempts=$((attempts + 1))
+    echo -e "   ${BOLD}${WHITE}Вставь токен доступа (попытка ${attempts}/3):${NC}"
+    read -r t
+    t=$(_trial_sanitize_token "$t")
+    if [[ -z "$t" ]]; then warn "Пустой ввод."; continue; fi
+    if _trial_token_format_ok "$t"; then TRIAL_TOKEN="$t"; return 0; fi
+    warn "Формат токена не похож на TRY-… Проверь, что скопировал целиком."
+  done
+  return 1
+}
+
+# Сохранить токен в кэш (chmod 600) — на повторных запусках не спрашиваем.
+_trial_token_save_cache() {
+  mkdir -p "$(dirname "$TRIAL_TOKEN_CACHE")" 2>/dev/null || true
+  ( umask 077; printf '%s\n' "$TRIAL_TOKEN" > "$TRIAL_TOKEN_CACHE" )
+  chmod 600 "$TRIAL_TOKEN_CACHE" 2>/dev/null || true
+}
+
 # ─── Парсинг флагов ─────────────────────────────────────────────
 VPS_MODE=false
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --vps|--headless) VPS_MODE=true; shift ;;
+    --token|--trial-token)
+      TRIAL_TOKEN_PRESET="${2:-}"
+      shift 2 2>/dev/null || shift
+      ;;
     --uninstall|--reset)
       # Wave 36: чистое удаление того что поставил trial — для повторной
       # установки с нуля. Node.js/Xcode CLT НЕ трогаем (не мешают, ускоряют
@@ -112,16 +215,17 @@ while [[ $# -gt 0 ]]; do
 AI TEAM 2.0 — ТЕСТ-ДРАЙВ установщик v${TRIAL_VERSION}
 
 Тест-драйв: OpenClaw + один агент-ассистент.
-Без курс-токена. Для полной версии (6 агентов) — ${COURSE_URL}
+Нужен TRY-токен (бесплатно в @AITeamVIPBot). Полная версия — ${COURSE_URL}
 
 Usage:
-  bash <(curl -fsSL .../install-trial-bundled.sh) [флаги]
+  bash <(curl -fsSL .../install-trial.sh) --token TRY-XXXX [флаги]
 
 Options:
-  --vps, --headless   Режим VPS/сервера (без GUI, dashboard через SSH)
-  --uninstall         Удалить OpenClaw + агента (для чистой переустановки)
-  --version           Показать версию
-  --help              Эта справка
+  --token, --trial-token <T>  TRY-токен из @AITeamVIPBot (или env TRIAL_TOKEN)
+  --vps, --headless           Режим VPS/сервера (без GUI, dashboard через SSH)
+  --uninstall                 Удалить OpenClaw + агента (для чистой переустановки)
+  --version                   Показать версию
+  --help                      Эта справка
 HELP
       exit 0
       ;;
@@ -174,6 +278,29 @@ else
   esac
   echo -e "${DIM}   🖥  Система: ${BOLD}${_os_label}${NC}${DIM} (на VPS — запусти с --vps)${NC}"
 fi
+echo ""
+divider
+echo ""
+
+# ═══════════════════════════════════════════════════════════════
+#  Доступ — TRY-токен из @AITeamVIPBot (обязателен)
+# ═══════════════════════════════════════════════════════════════
+# Фаза A: формат-проверка ДО любой установки. Полную крипто-проверку
+# подписи делаем после Шага 1 (там появляется node).
+echo -e "${BOLD}${WHITE}🔑 Доступ — нужен токен из @AITeamVIPBot${NC}"
+echo ""
+echo -e "${DIM}   Тест-драйв бесплатный, но выдаётся по токену:${NC}"
+echo -e "   ${CYAN}1.${NC} Открой ${BOLD}@AITeamVIPBot${NC} в Telegram → /start"
+echo -e "   ${CYAN}2.${NC} Возьми бесплатный TRY-токен"
+echo -e "   ${CYAN}3.${NC} Вставь его сюда"
+echo ""
+if ! _trial_token_gate_format; then
+  echo ""
+  err "Без токена установка невозможна. Получи бесплатный TRY-токен в @AITeamVIPBot."
+  echo -e "${BOLD}${CYAN}      https://t.me/AITeamVIPBot${NC}"
+  exit 1
+fi
+ok "Токен принят. Подпись проверю после установки движка."
 echo ""
 divider
 echo ""
@@ -285,6 +412,22 @@ ok "OpenClaw установлен: $(openclaw --version 2>/dev/null | head -1 ||
 echo ""
 
 # ═══════════════════════════════════════════════════════════════
+#  Доступ (фаза B) — крипто-проверка подписи токена (теперь есть node)
+# ═══════════════════════════════════════════════════════════════
+echo -e "${DIM}   Проверяю подпись токена...${NC}"
+if _trial_token_verify_sig "$TRIAL_TOKEN"; then
+  _trial_token_save_cache
+  ok "Токен подтверждён (TRY-тариф, TG ID ${TRIAL_TG_ID})"
+else
+  echo ""
+  err "Подпись токена не прошла проверку — повреждён, подделан или отозван."
+  echo -e "${DIM}   Получи свежий TRY-токен в @AITeamVIPBot и запусти снова.${NC}"
+  echo -e "${BOLD}${CYAN}      https://t.me/AITeamVIPBot${NC}"
+  exit 1
+fi
+echo ""
+
+# ═══════════════════════════════════════════════════════════════
 #  T2. Подключение модели («мозги» агента) — opencode DeepSeek Flash Free
 # ═══════════════════════════════════════════════════════════════
 #
@@ -392,19 +535,25 @@ echo -e "   ${DIM}Подключаю Telegram-канал...${NC}"
 unset BOT_TOKEN
 ok "Telegram-бот @${username} подключён"
 
-# Wave 39: DM-политика + allowlist владельца. БЕЗ ЭТОГО бот отвечает
-# «access not configured» + pairing code вместо нормального общения.
+# DM-политика + allowlist владельца. БЕЗ ЭТОГО бот отвечает «access not
+# configured» + pairing code вместо нормального общения.
+# TG ID берём ИЗ ТОКЕНА (бот его знает) — клиента не спрашиваем. Это
+# заодно анти-шаринг: allowlist на того, кому бот выдал токен.
 echo ""
-echo -e "   ${BOLD}${WHITE}Твой Telegram user ID (чтобы бот сразу отвечал тебе):${NC}"
-echo -e "   ${DIM}Узнать ID: напиши @userinfobot в Telegram. Можно Enter чтобы пропустить.${NC}"
-read -r TG_USER_ID
-TG_USER_ID=$(printf '%s' "$TG_USER_ID" | tr -cd '0-9')
+TG_USER_ID="$TRIAL_TG_ID"
+if [[ -z "$TG_USER_ID" ]]; then
+  # Fallback (на случай токена без TG) — спросим вручную.
+  echo -e "   ${BOLD}${WHITE}Твой Telegram user ID (чтобы бот сразу отвечал тебе):${NC}"
+  echo -e "   ${DIM}Узнать ID: напиши @userinfobot в Telegram. Можно Enter чтобы пропустить.${NC}"
+  read -r TG_USER_ID
+  TG_USER_ID=$(printf '%s' "$TG_USER_ID" | tr -cd '0-9')
+fi
 if [[ -n "$TG_USER_ID" ]]; then
   openclaw config set channels.telegram.dmPolicy allowlist &>/dev/null || true
   openclaw config set channels.telegram.allowFrom "[\"${TG_USER_ID}\"]" &>/dev/null || true
-  ok "Доступ настроен — бот будет отвечать тебе без подтверждения"
+  ok "Доступ настроен на твой Telegram (ID ${TG_USER_ID} из токена)"
 else
-  warn "ID не введён — при первом сообщении бот может попросить код подтверждения."
+  warn "TG ID неизвестен — при первом сообщении бот может попросить код подтверждения."
 fi
 echo ""
 

@@ -1,27 +1,41 @@
 # AI TEAM 2.0 — Тест-драйв 🤖
 
-Бесплатный установщик «тест-драйв» версии AI TEAM 2.0: ставит движок
-**OpenClaw** + одного агента-ассистента в твой Telegram. Дать людям
-попробовать систему бесплатно → показать, на что способна полная
-команда из 6 агентов.
+Установщик «тест-драйв» версии AI TEAM 2.0: ставит движок **OpenClaw**
++ одного агента-ассистента в твой Telegram. Бесплатно, но **по токену**
+из бота — так каждый, кто ставит тест-драйв, попадает к нам как лид.
 
 > Полная версия (6 агентов + супер-агент): **https://serditov.tonytrue.pro/**
 
 ---
+
+## Доступ — токен из бота
+
+Тест-драйв бесплатный, но выдаётся по **TRY-токену**:
+
+1. Открой **[@AITeamVIPBot](https://t.me/AITeamVIPBot)** в Telegram → /start
+2. Возьми бесплатный TRY-токен (бот привязывает его к твоему Telegram)
+3. Запусти команду установки с этим токеном
+
+Токен подписан Ed25519 (тот же механизм, что у платных тарифов) и
+проверяется локально — без интернета к боту. В токене зашит твой TG ID,
+поэтому отдать его другу нельзя (бот ответит только тебе).
 
 ## Установка (одна команда)
 
 macOS / Linux:
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/tonytrue92-beep/openclaw-test-drive/main/scripts/install-trial.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/tonytrue92-beep/openclaw-test-drive/main/scripts/install-trial.sh) --token TRY-XXXX
 ```
 
 На сервере (VPS, без GUI):
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/tonytrue92-beep/openclaw-test-drive/main/scripts/install-trial.sh) --vps
+bash <(curl -fsSL https://raw.githubusercontent.com/tonytrue92-beep/openclaw-test-drive/main/scripts/install-trial.sh) --token TRY-XXXX --vps
 ```
+
+Можно и без `--token` — установщик спросит токен интерактивно. Или
+через переменную: `TRIAL_TOKEN=TRY-XXXX bash <(curl …)`.
 
 Переустановить с нуля (сначала удалить):
 
@@ -35,15 +49,17 @@ bash <(curl -fsSL https://raw.githubusercontent.com/tonytrue92-beep/openclaw-tes
 
 Полностью автоматически, по шагам (клиент только вставляет ключи):
 
-1. **Движок** — ставит Node.js (через nvm) и OpenClaw (`npm install -g openclaw`).
+1. **Доступ** — проверяет TRY-токен (формат сразу, подпись Ed25519 после
+   установки движка). Без валидного токена установка не идёт.
+2. **Движок** — ставит Node.js (через nvm) и OpenClaw (`npm install -g openclaw`).
    На macOS сам доустанавливает Xcode Command Line Tools.
-2. **Мозги** — подключает бесплатную модель `opencode/deepseek-v4-flash-free`
+3. **Мозги** — подключает бесплатную модель `opencode/deepseek-v4-flash-free`
    (карта не нужна). Открывает opencode.ai в браузере для получения ключа.
-3. **Telegram** — подключает бота (токен из @BotFather), настраивает
-   доступ владельцу.
-4. **Финальная сборка** — прогоняет `openclaw onboard` в авто-режиме +
+4. **Telegram** — подключает бота (токен из @BotFather). TG ID владельца
+   берётся **из TRY-токена** — клиента не спрашивают (бот уже знает его).
+5. **Финальная сборка** — прогоняет `openclaw onboard` в авто-режиме +
    поднимает gateway (страховочно, проверенными командами).
-5. **Быстрый онбординг** — понятный русский чек-лист ✓/✗: движок, модель,
+6. **Быстрый онбординг** — понятный русский чек-лист ✓/✗: движок, модель,
    Telegram, агент, gateway. В конце открывает страницу полной версии.
 
 Агент-ассистент каждые 2-3 сообщения мягко предлагает полную версию
@@ -55,6 +71,7 @@ bash <(curl -fsSL https://raw.githubusercontent.com/tonytrue92-beep/openclaw-tes
 
 | Флаг | Что делает |
 |---|---|
+| `--token`, `--trial-token <T>` | TRY-токен из @AITeamVIPBot (или env `TRIAL_TOKEN`) |
 | `--vps`, `--headless` | Режим VPS/сервера (dashboard через SSH) |
 | `--uninstall`, `--reset` | Удалить OpenClaw + агента (для чистой переустановки) |
 | `--version` | Показать версию |
@@ -65,7 +82,7 @@ bash <(curl -fsSL https://raw.githubusercontent.com/tonytrue92-beep/openclaw-tes
 ## Связь с другими репозиториями
 
 - **Этот репо (`openclaw-test-drive`)** — бесплатный тест-драйв (1 агент,
-  лидогенерация). Без курс-токена.
+  лидогенерация). По TRY-токену из @AITeamVIPBot (бесплатный, лид-контроль).
 - **`openclaw-agents-pack`** — платный продукт: полная команда агентов
   (Base / Pro / Hermes), требует курс-токен. Это то, что мы продаём.
 - **`openclaw-factory`** — установщик самого движка OpenClaw (первая
