@@ -127,5 +127,32 @@ grep -qF 'xdg-open "$COURSE_URL"' "$TRIAL" \
   || fail "финал не открывает сайт-продажник через xdg-open (Linux)"
 pass "финал авто-открывает сайт полной версии в браузере"
 
+# ─── TRY-токен: гейт доступа (тот же механизм, что платный) ─────
+# Бесплатно, но по токену из @AITeamVIPBot. Ed25519, встроенный
+# публичный ключ, двухфазный гейт (формат до установки, подпись после).
+grep -q 'TRIAL_PUBLIC_KEY_PEM' "$TRIAL" \
+  || fail "нет встроенного публичного ключа для проверки токена"
+grep -q 'BEGIN PUBLIC KEY' "$TRIAL" \
+  || fail "нет PEM публичного ключа"
+grep -qF 'TRY-[A-F0-9]{16}' "$TRIAL" \
+  || fail "нет формат-проверки TRY-токена"
+grep -q 'crypto.verify' "$TRIAL" \
+  || fail "нет Ed25519 крипто-проверки подписи (node)"
+grep -qF 'TRY|' "$TRIAL" \
+  || fail "payload подписи должен быть TRY|<hash>|<tg>"
+grep -q -- '--token|--trial-token' "$TRIAL" \
+  || fail "нет флага --token/--trial-token"
+grep -q 'TRIAL_TG_ID' "$TRIAL" \
+  || fail "TG ID не извлекается из токена (для allowFrom)"
+grep -qF 'Без токена установка невозможна' "$TRIAL" \
+  || fail "нет жёсткого гейта (выход без валидного токена)"
+pass "TRY-токен: гейт + Ed25519 + TG из токена + --token флаг"
+
+# Безопасность: приватного ключа в репо быть НЕ должно (только у бота)
+if grep -rqE 'BEGIN (OPENSSH |EC |RSA |DSA |)PRIVATE KEY' scripts/ templates/ 2>/dev/null; then
+  fail "в репо есть приватный ключ — он должен быть ТОЛЬКО у бота!"
+fi
+pass "приватного ключа в репо нет (только публичный)"
+
 echo ""
 echo "=== All smoke tests passed ==="

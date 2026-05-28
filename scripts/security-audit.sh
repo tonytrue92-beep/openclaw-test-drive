@@ -74,6 +74,17 @@ else
 fi
 echo ""
 
+# ─── Check 5: приватного ключа подписи в репо нет ───────────────
+# Публичный ключ для проверки TRY-токенов — норма (он публичный).
+# Приватный ключ подписи есть ТОЛЬКО у @AITeamVIPBot. В репо — никогда.
+echo "─── Check 5: нет приватного ключа подписи ───"
+if grep -rqE 'BEGIN (OPENSSH |EC |RSA |DSA |)PRIVATE KEY' scripts/ templates/ 2>/dev/null; then
+  fail "в репо найден приватный ключ — он должен быть ТОЛЬКО у бота!"
+else
+  pass "приватного ключа нет (встроен только публичный — это норма)"
+fi
+echo ""
+
 # ─── Summary ───
 if [[ $fail_count -eq 0 ]]; then
   echo "=== Security audit passed ==="
