@@ -1,0 +1,131 @@
+#!/usr/bin/env bash
+# smoke-test.sh — статические проверки тест-драйв установщика.
+# Запускается в CI и локально: bash scripts/smoke-test.sh
+#
+# НЕ выполняет install-trial.sh (он ставит реальный софт) — только
+# проверяет grep-асертами, что ключевые шаги и строки на месте.
+
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+fail() { echo "✗ FAIL: $1"; exit 1; }
+pass() { echo "✓ PASS: $1"; }
+
+TRIAL=scripts/install-trial.sh
+
+echo "=== Smoke-test openclaw-test-drive ==="
+echo ""
+
+# ─── Структура ──────────────────────────────────────────────────
+[[ -f "$TRIAL" ]] || fail "нет scripts/install-trial.sh"
+for f in IDENTITY AGENTS SOUL USER MEMORY; do
+  [[ -f "templates/assistant/${f}.md" ]] || fail "нет templates/assistant/${f}.md"
+done
+pass "структура: install-trial.sh + templates/assistant/*.md на месте"
+
+# ─── bash 3.2-совместимость (macOS) — без declare -A/mapfile/${^^} ─
+if grep -nE 'declare -A|mapfile|\$\{[A-Za-z_]+\^\^\}' "$TRIAL"; then
+  fail "bash 4+ конструкции (на macOS bash 3.2 упадёт)"
+fi
+pass "bash 3.2-совместимость (нет declare -A / mapfile / \${^^})"
+
+# ─── REPO_RAW указывает на ЭТОТ репо (иначе шаблоны не скачаются) ─
+grep -q 'openclaw-test-drive/main' "$TRIAL" \
+  || fail "REPO_RAW не указывает на openclaw-test-drive (шаблоны не скачаются)"
+grep -q 'openclaw-agents-pack' "$TRIAL" \
+  && fail "остался указатель на openclaw-agents-pack (репо разделены)" \
+  || true
+pass "REPO_RAW указывает на openclaw-test-drive"
+
+# ─── Движок: OpenClaw через npm + Node через nvm (кроссплатформенно) ─
+grep -q 'npm install -g openclaw@latest' "$TRIAL" \
+  || fail "trial не ставит OpenClaw через npm"
+grep -q 'nvm install 22' "$TRIAL" \
+  || fail "trial не ставит Node.js через nvm"
+grep -q 'brew install --cask openclaw' "$TRIAL" \
+  && fail "brew-cask путь должен быть убран (macOS-only, требует Sequoia)" \
+  || true
+pass "движок: OpenClaw через npm + Node через nvm"
+
+# ─── Xcode CLT auto-install (на чистом маке нет git/компиляторов) ──
+grep -q 'xcode-select --install' "$TRIAL" \
+  || fail "trial не запускает auto-install Xcode CLT"
+grep -q 'xcode-select -p' "$TRIAL" \
+  || fail "trial не проверяет наличие Xcode CLT"
+pass "Xcode CLT auto-install + wait-loop (без ошибки у клиента)"
+
+# ─── nvm прописан в shell rc (иначе openclaw не в PATH новых терминалов) ─
+grep -q 'persist_nvm_in_shell_rc' "$TRIAL" \
+  || fail "trial не прописывает nvm в shell rc (openclaw будет недоступен)"
+grep -q 'nvm alias default' "$TRIAL" \
+  || fail "нет nvm alias default (openclaw не в PATH новых терминалов)"
+pass "nvm персистится в shell rc + alias default"
+
+# ─── Модель: opencode-ключ + auth-profile + фикс. DeepSeek, без меню ─
+grep -q 'opencode.ai' "$TRIAL" \
+  || fail "trial не запрашивает opencode-ключ для модели"
+grep -q 'auth-profiles.json' "$TRIAL" \
+  || fail "trial не пишет auth-profiles.json (агент будет молчать)"
+grep -q 'agents.defaults.model.primary' "$TRIAL" \
+  || fail "trial не устанавливает модель по умолчанию"
+grep -q 'opencode/deepseek-v4-flash-free' "$TRIAL" \
+  || fail "trial не ставит deepseek-v4-flash-free по умолчанию"
+grep -q 'Выбери модель' "$TRIAL" \
+  && fail "меню выбора модели должно быть убрано" \
+  || true
+grep -qiE 'minimax|gpt-5|claude-sonnet' "$TRIAL" \
+  && fail "остались старые модели (minimax/gpt-5/claude-sonnet)" \
+  || true
+pass "модель: opencode-ключ + auth-profile + фиксированный DeepSeek (без меню)"
+
+# ─── --uninstall: чистое удаление для переустановки ─────────────
+grep -q '\-\-uninstall|--reset)' "$TRIAL" \
+  || fail "флаг --uninstall не обработан"
+grep -q 'npm uninstall -g openclaw' "$TRIAL" \
+  || fail "--uninstall не удаляет npm-пакет openclaw"
+grep -q 'rm -rf "\$HOME/.openclaw"' "$TRIAL" \
+  || fail "--uninstall не удаляет ~/.openclaw"
+pass "--uninstall (чистое удаление для переустановки)"
+
+# ─── Telegram: channels add + dmPolicy/allowFrom + bind ─────────
+grep -q 'openclaw channels add --channel telegram' "$TRIAL" \
+  || fail "telegram-токен не через channels add (бот будет молчать)"
+grep -q 'channels.telegram.dmPolicy allowlist' "$TRIAL" \
+  || fail "нет dmPolicy allowlist (бот попросит pairing)"
+grep -q 'channels.telegram.allowFrom' "$TRIAL" \
+  || fail "нет allowFrom (владелец не в allowlist)"
+grep -q -- '--bind telegram' "$TRIAL" \
+  || fail "agents add без --bind telegram"
+pass "telegram: channels add + dmPolicy/allowFrom + bind telegram"
+
+# ─── Gateway: install безусловно + launchctl bootstrap + маркер ──
+grep -q 'config set gateway.mode local' "$TRIAL" \
+  || fail "trial не ставит gateway.mode local (gateway упадёт)"
+grep -q 'openclaw gateway install' "$TRIAL" \
+  || fail "trial не делает gateway install (сервис не создаётся)"
+grep -q 'launchctl bootstrap' "$TRIAL" \
+  || fail "trial не делает launchctl bootstrap (LaunchAgent не грузится)"
+grep -q 'LaunchAgent \\(loaded\\)' "$TRIAL" \
+  || fail "проверка gateway не на надёжный маркер (LaunchAgent loaded)"
+pass "gateway: install + launchctl bootstrap + надёжный маркер"
+
+# ─── onboard non-interactive + видимый русский онбординг ─────────
+grep -q 'openclaw onboard' "$TRIAL" \
+  || fail "trial не прогоняет openclaw onboard"
+grep -q 'opencode-zen-api-key' "$TRIAL" \
+  || fail "onboard без --opencode-zen-api-key (модель не настроится)"
+grep -q 'non-interactive' "$TRIAL" \
+  || fail "onboard не в non-interactive (повиснет на промпте)"
+grep -q 'Быстрый онбординг' "$TRIAL" \
+  || fail "нет видимого русского онбординг-чеклиста"
+pass "onboard non-interactive + русский онбординг-чеклист"
+
+# ─── Финал: авто-открытие сайта-продажника в браузере ───────────
+grep -qF 'open "$COURSE_URL"' "$TRIAL" \
+  || fail "финал не открывает сайт-продажник через open (macOS)"
+grep -qF 'xdg-open "$COURSE_URL"' "$TRIAL" \
+  || fail "финал не открывает сайт-продажник через xdg-open (Linux)"
+pass "финал авто-открывает сайт полной версии в браузере"
+
+echo ""
+echo "=== All smoke tests passed ==="

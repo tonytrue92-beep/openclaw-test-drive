@@ -1,0 +1,90 @@
+# CI for openclaw-test-drive.
+# Does NOT interpolate any user-controlled inputs (issue/PR titles,
+# commit messages, etc.) into run steps — no command-injection surface.
+
+name: Lint & smoke
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/**'
+      - 'templates/**'
+      - '.github/workflows/**'
+      - 'SHA256SUMS'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/**'
+      - 'templates/**'
+      - '.github/workflows/**'
+      - 'SHA256SUMS'
+
+permissions:
+  contents: read
+
+jobs:
+  shellcheck:
+    name: ShellCheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck
+      - run: |
+          shellcheck \
+            --severity=warning \
+            --exclude=SC1090,SC1091,SC2155,SC2086,SC2034 \
+            scripts/install-trial.sh \
+            scripts/update-checksums.sh \
+            scripts/security-audit.sh \
+            scripts/smoke-test.sh
+
+  syntax:
+    name: bash -n
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          set -euo pipefail
+          for f in scripts/*.sh; do
+            echo "checking $f"
+            bash -n "$f"
+          done
+          echo "all scripts pass bash -n"
+
+  smoke:
+    name: Smoke-test (trial static checks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash scripts/smoke-test.sh
+
+  security-audit:
+    name: Security audit (no secret leaks + templates clean)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash scripts/security-audit.sh
+
+  checksums:
+    name: SHA256SUMS freshness
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          set -euo pipefail
+          if [[ ! -f SHA256SUMS ]]; then
+            echo "SHA256SUMS file is missing. Run: bash scripts/update-checksums.sh"
+            exit 1
+          fi
+          tmp=$(mktemp)
+          for f in scripts/*.sh templates/*/*.md; do
+            sha256sum "$f" >> "$tmp"
+          done
+          committed=$(grep -vE '^(#|$)' SHA256SUMS | sort)
+          current=$(sort "$tmp")
+          if [[ "$committed" != "$current" ]]; then
+            echo "SHA256SUMS is out of date. Run: bash scripts/update-checksums.sh"
+            exit 1
+          fi
+          echo "SHA256SUMS is up to date"

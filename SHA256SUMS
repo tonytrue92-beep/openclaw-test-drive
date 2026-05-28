@@ -1,0 +1,18 @@
+# SHA-256 checksums for openclaw-test-drive
+# Generated: 2026-05-28 16:07:04 UTC
+# Commit: unknown
+#
+# Verify a downloaded script matches the committed version:
+#   curl -fsSL <raw-url> | shasum -a 256
+#   (or on Linux: sha256sum <file>)
+#
+
+49a1abc69bf0a43c5c3047199088a8227623abe743a1e604b67fa2f2b3b64067  scripts/install-trial.sh
+7931157e18e5174e55f5740657e6d5a73ea787ef64aa582700e051afabe55fff  scripts/security-audit.sh
+c3800942aadb85264299dde607002698a05a83929d37437925b08a2139ad5480  scripts/smoke-test.sh
+495ff9a4c910ff1dfcc1be6c04f539051ef2350baee3c9f4d26601dfa22053c7  scripts/update-checksums.sh
+2322c21a936622d4e0666a4277b05474d1a298e211a90500a7d1a4786314b7c7  templates/assistant/AGENTS.md
+1ba252889d94180efd0bfcc01550b11871cefe19fae13bfd5c36a1dcc27dc92c  templates/assistant/IDENTITY.md
+102d9114cf5f9865a3b93d4c448e82b70732ba90dba59bf3bb3a0d4dd0621f62  templates/assistant/MEMORY.md
+46920b6fa592bc8677989abf48654b5c231557de1ff834d405897163d618e485  templates/assistant/SOUL.md
+ce7fd473f036ca81b279bd65be705ae443152ca91882ab31011a2f0728a904f6  templates/assistant/USER.md
