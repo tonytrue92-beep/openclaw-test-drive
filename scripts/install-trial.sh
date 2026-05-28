@@ -6,14 +6,14 @@ set -euo pipefail
 #
 #  ⚠️  ЭТО ОТДЕЛЬНЫЙ УСТАНОВЩИК. Не связан с install-agents.sh.
 #      Ставит OpenClaw движок + ОДНОГО агента-ассистента (демо).
-#      Бесплатно, но ПО ТОКЕНУ: TRY-токен выдаёт @AITeamVIPBot (лид-
-#      контроль). Тот же Ed25519-механизм, что в платном установщике.
+#      ПО ТОКЕНУ (после оплаты): TRY-токен выдаёт @AITeamVIPBot после
+#      успешной оплаты (Prodamus). Тот же Ed25519-механизм, что в платном.
 #
 #  Агент-ассистент каждые 2-3 сообщения мягко предлагает полную версию
 #  курса со ссылкой https://serditov.tonytrue.pro/ (логика в шаблоне
 #  templates/assistant/AGENTS.md + SOUL.md).
 #
-#  Цель: дать людям попробовать систему бесплатно → конвертировать
+#  Цель: недорогой платный вход (квалифицирует лида) → конвертировать
 #  в полную версию (6 агентов + Hermes).
 #
 #  Работает на macOS / Linux / VPS / Windows (WSL/Git Bash).
@@ -32,7 +32,7 @@ if (( BASH_VERSINFO[0] < 4 )); then
   # bash 4+ не найден — продолжаем на текущем 3.2 (код совместим).
 fi
 
-TRIAL_VERSION="2026.05.28.14"
+TRIAL_VERSION="2026.05.28.15"
 TRIAL_COMMIT="__COMMIT_PLACEHOLDER__"
 COURSE_URL="https://serditov.tonytrue.pro/"
 REPO_RAW="https://raw.githubusercontent.com/tonytrue92-beep/openclaw-test-drive/main"
@@ -215,7 +215,7 @@ while [[ $# -gt 0 ]]; do
 AI TEAM 2.0 — ТЕСТ-ДРАЙВ установщик v${TRIAL_VERSION}
 
 Тест-драйв: OpenClaw + один агент-ассистент.
-Нужен TRY-токен (бесплатно в @AITeamVIPBot). Полная версия — ${COURSE_URL}
+Нужен TRY-токен (выдаётся после оплаты, @AITeamVIPBot). Полная версия — ${COURSE_URL}
 
 Usage:
   bash <(curl -fsSL .../install-trial.sh) --token TRY-XXXX [флаги]
@@ -289,14 +289,14 @@ echo ""
 # подписи делаем после Шага 1 (там появляется node).
 echo -e "${BOLD}${WHITE}🔑 Доступ — нужен токен из @AITeamVIPBot${NC}"
 echo ""
-echo -e "${DIM}   Тест-драйв бесплатный, но выдаётся по токену:${NC}"
+echo -e "${DIM}   Доступ по токену (выдаётся после оплаты):${NC}"
 echo -e "   ${CYAN}1.${NC} Открой ${BOLD}@AITeamVIPBot${NC} в Telegram → /start"
-echo -e "   ${CYAN}2.${NC} Возьми бесплатный TRY-токен"
-echo -e "   ${CYAN}3.${NC} Вставь его сюда"
+echo -e "   ${CYAN}2.${NC} Оплати по ссылке — бот пришлёт TRY-токен"
+echo -e "   ${CYAN}3.${NC} Вставь токен сюда"
 echo ""
 if ! _trial_token_gate_format; then
   echo ""
-  err "Без токена установка невозможна. Получи бесплатный TRY-токен в @AITeamVIPBot."
+  err "Без токена установка невозможна. Оплати и получи TRY-токен в @AITeamVIPBot."
   echo -e "${BOLD}${CYAN}      https://t.me/AITeamVIPBot${NC}"
   exit 1
 fi
