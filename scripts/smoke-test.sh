@@ -47,6 +47,11 @@ grep -q 'brew install --cask openclaw' "$TRIAL" \
   || true
 pass "движок: OpenClaw через npm + Node через nvm"
 
+# Движок всегда обновляется до latest (а не только при отсутствии)
+grep -q 'Ставлю/обновляю OpenClaw до последней' "$TRIAL" \
+  || fail "trial не обновляет движок до latest (должно ставить/обновлять всегда)"
+pass "движок: всегда подтягивается последняя версия OpenClaw (ставит/обновляет)"
+
 # ─── Xcode CLT auto-install (на чистом маке нет git/компиляторов) ──
 grep -q 'xcode-select --install' "$TRIAL" \
   || fail "trial не запускает auto-install Xcode CLT"
