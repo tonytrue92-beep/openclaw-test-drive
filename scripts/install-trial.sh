@@ -32,7 +32,7 @@ if (( BASH_VERSINFO[0] < 4 )); then
   # bash 4+ не найден — продолжаем на текущем 3.2 (код совместим).
 fi
 
-TRIAL_VERSION="2026.05.28.16"
+TRIAL_VERSION="2026.06.06"
 TRIAL_COMMIT="__COMMIT_PLACEHOLDER__"
 COURSE_URL="https://serditov.tonytrue.pro/"
 REPO_RAW="https://raw.githubusercontent.com/tonytrue92-beep/openclaw-test-drive/main"
@@ -725,6 +725,25 @@ else
   echo -e "   ${BOLD}${WHITE}Dashboard:${NC} ${CYAN}http://127.0.0.1:18789${NC}"
 fi
 echo ""
+# ─── Windows: предложить официальный интерфейс (Companion GUI) ───
+if [[ "$OS_NAME" == "windows-bash" || "$OS_NAME" == "wsl" ]]; then
+  echo -e "${BOLD}${WHITE}🪟 Хочешь удобный интерфейс для Windows? (OpenClaw Windows Hub)${NC}"
+  echo -e "${DIM}   Трей-иконка, командный центр, диагностика — без терминала.${NC}"
+  echo -e "${BOLD}${WHITE}   Открыть страницу загрузки? [y/N]:${NC}"
+  read -r _companion_ans || true
+  if [[ "${_companion_ans:-}" =~ ^[Yy]$ ]]; then
+    _companion_url="https://docs.openclaw.ai/platforms/windows"
+    if   command -v cmd.exe        >/dev/null 2>&1; then cmd.exe /c start "" "$_companion_url" >/dev/null 2>&1 || true
+    elif command -v powershell.exe >/dev/null 2>&1; then powershell.exe -NoProfile -Command "Start-Process '$_companion_url'" >/dev/null 2>&1 || true
+    elif command -v explorer.exe   >/dev/null 2>&1; then explorer.exe "$_companion_url" >/dev/null 2>&1 || true
+    elif command -v start          >/dev/null 2>&1; then start "" "$_companion_url" >/dev/null 2>&1 || true
+    fi
+    echo -e "${GREEN}✓${NC} Страница загрузки: ${CYAN}${_companion_url}${NC}"
+    unset _companion_url
+  fi
+  unset _companion_ans
+  echo ""
+fi
 echo -e "${BOLD}${YELLOW}   ⭐ Понравилось? Полная версия — команда из 6 агентов + супер-агент:${NC}"
 echo -e "${BOLD}${CYAN}      ${COURSE_URL}${NC}"
 echo ""
