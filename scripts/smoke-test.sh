@@ -159,5 +159,12 @@ if grep -rqE 'BEGIN (OPENSSH |EC |RSA |DSA |)PRIVATE KEY' scripts/ templates/ 2>
 fi
 pass "приватного ключа в репо нет (только публичный)"
 
+# Windows Companion GUI offer в финале (всем Windows-клиентам)
+grep -q 'docs.openclaw.ai/platforms/windows' "$TRIAL" \
+  || fail "Windows Companion: нет ссылки на страницу загрузки"
+grep -q 'OpenClaw Windows Hub' "$TRIAL" \
+  || fail "Windows Companion: нет текста предложения"
+pass "Windows Companion GUI offer на месте (trial)"
+
 echo ""
 echo "=== All smoke tests passed ==="
