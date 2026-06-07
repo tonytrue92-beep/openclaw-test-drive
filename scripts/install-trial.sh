@@ -726,7 +726,8 @@ else
 fi
 echo ""
 # ─── Windows: предложить официальный интерфейс (Companion GUI) ───
-if [[ "$OS_NAME" == "windows-bash" || "$OS_NAME" == "wsl" ]]; then
+# Только в интерактивном терминале (в headless/CI не спрашиваем).
+if [[ -t 0 && ( "$OS_NAME" == "windows-bash" || "$OS_NAME" == "wsl" ) ]]; then
   echo -e "${BOLD}${WHITE}🪟 Хочешь удобный интерфейс для Windows? (OpenClaw Windows Hub)${NC}"
   echo -e "${DIM}   Трей-иконка, командный центр, диагностика — без терминала.${NC}"
   echo -e "${BOLD}${WHITE}   Открыть страницу загрузки? [y/N]:${NC}"
