@@ -32,7 +32,7 @@ if (( BASH_VERSINFO[0] < 4 )); then
   # bash 4+ не найден — продолжаем на текущем 3.2 (код совместим).
 fi
 
-TRIAL_VERSION="2026.06.06"
+TRIAL_VERSION="2026.06.09"
 TRIAL_COMMIT="__COMMIT_PLACEHOLDER__"
 COURSE_URL="https://serditov.tonytrue.pro/"
 REPO_RAW="https://raw.githubusercontent.com/tonytrue92-beep/openclaw-test-drive/main"
@@ -152,7 +152,7 @@ _trial_token_gate_format() {
   while [[ $attempts -lt 3 ]]; do
     attempts=$((attempts + 1))
     echo -e "   ${BOLD}${WHITE}Вставь токен доступа (попытка ${attempts}/3):${NC}"
-    read -r t
+    read -r t || t=""   # не-tty/EOF (curl|bash без --token) → не падаем под set -e
     t=$(_trial_sanitize_token "$t")
     if [[ -z "$t" ]]; then warn "Пустой ввод."; continue; fi
     if _trial_token_format_ok "$t"; then TRIAL_TOKEN="$t"; return 0; fi
@@ -187,7 +187,7 @@ while [[ $# -gt 0 ]]; do
       echo "(данные и настройки). Node.js и Xcode CLT останутся."
       echo ""
       printf "Продолжить удаление? [y/N]: "
-      read -r _confirm
+      read -r _confirm || _confirm="n"   # не-tty/EOF → считаем «нет» (без set -e краша)
       if [[ "${_confirm:-n}" != "y" && "${_confirm:-n}" != "Y" ]]; then
         echo "Отменено."
         exit 0
@@ -392,7 +392,9 @@ npm config set fetch-retry-maxtimeout 120000 >/dev/null 2>&1 || true
 npm config set fetch-timeout 300000 >/dev/null 2>&1 || true
 
 _npm_err=$(mktemp -t openclaw-npm-err.XXXXXX 2>/dev/null || echo "/tmp/openclaw-npm-err.$$")
-npm install -g openclaw@latest 2>"$_npm_err" | tail -8 | while IFS= read -r line; do
+# `|| true` — иначе под set -o pipefail падение npm убьёт скрипт ДО дружелюбного
+# обработчика ниже (проверка `command -v openclaw` + понятная подсказка).
+{ npm install -g openclaw@latest 2>"$_npm_err" || true; } | tail -8 | while IFS= read -r line; do
   echo -e "   ${DIM}${line}${NC}"
 done
 
