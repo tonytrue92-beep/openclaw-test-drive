@@ -6,6 +6,12 @@
 
 ---
 
+## 2026.06.10 — Хотфикс: провайдер opencode → opencode-go
+
+- OpenClaw переименовал провайдер; `opencode/deepseek-v4-flash-free` больше не
+  существует («Unknown model»). Модель тест-драйва → `opencode-go/deepseek-v4-flash`,
+  provider в auth-profiles.json → `opencode-go`.
+
 ## 2026-06-09 — v2026.06.09 (аудит-фиксы: устойчивость к ошибкам)
 
 ### Fixed

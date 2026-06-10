@@ -54,7 +54,7 @@ bash <(curl -fsSL https://raw.githubusercontent.com/tonytrue92-beep/openclaw-tes
    установки движка). Без валидного токена установка не идёт.
 2. **Движок** — ставит Node.js (через nvm) и OpenClaw (`npm install -g openclaw`).
    На macOS сам доустанавливает Xcode Command Line Tools.
-3. **Мозги** — подключает бесплатную модель `opencode/deepseek-v4-flash-free`
+3. **Мозги** — подключает бесплатную модель `opencode-go/deepseek-v4-flash`
    (карта не нужна). Открывает opencode.ai в браузере для получения ключа.
 4. **Telegram** — подключает бота (токен из @BotFather). TG ID владельца
    берётся **из TRY-токена** — клиента не спрашивают (бот уже знает его).
