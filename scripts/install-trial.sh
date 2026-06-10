@@ -489,7 +489,7 @@ echo ""
 
 # Wave 43: модель фиксирована (Антон) — БЕЗ меню выбора. Тест-драйв
 # всегда ставит бесплатную DeepSeek Flash Free, чтобы не путать клиента.
-TRIAL_MODEL="opencode/deepseek-v4-flash-free"
+TRIAL_MODEL="opencode-go/deepseek-v4-flash"
 ok "Модель: ${TRIAL_MODEL} (бесплатно)"
 echo ""
 
@@ -624,14 +624,14 @@ cat > "${AUTH_DIR}/auth-profiles.json" <<AUTHEOF
 {
   "version": 1,
   "profiles": {
-    "opencode:default": {
+    "opencode-go:default": {
       "type": "api_key",
-      "provider": "opencode",
+      "provider": "opencode-go",
       "key": "${OPENCODE_KEY}"
     }
   },
   "lastGood": {
-    "opencode": "opencode:default"
+    "opencode": "opencode-go:default"
   }
 }
 AUTHEOF

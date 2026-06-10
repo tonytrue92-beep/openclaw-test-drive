@@ -73,7 +73,7 @@ grep -q 'auth-profiles.json' "$TRIAL" \
   || fail "trial не пишет auth-profiles.json (агент будет молчать)"
 grep -q 'agents.defaults.model.primary' "$TRIAL" \
   || fail "trial не устанавливает модель по умолчанию"
-grep -q 'opencode/deepseek-v4-flash-free' "$TRIAL" \
+grep -q 'opencode-go/deepseek-v4-flash' "$TRIAL" \
   || fail "trial не ставит deepseek-v4-flash-free по умолчанию"
 grep -q 'Выбери модель' "$TRIAL" \
   && fail "меню выбора модели должно быть убрано" \
