@@ -168,3 +168,10 @@ pass "Windows Companion GUI offer на месте (trial)"
 
 echo ""
 echo "=== All smoke tests passed ==="
+
+# ─── IP-gated доставка (2026-06-14) ───
+grep -q 'ip_dl_trial()' scripts/install-trial.sh || { echo "FAIL: ip_dl_trial нет"; exit 1; }
+grep -q 'IP_BASE="${IP_BASE:-}"' scripts/install-trial.sh || { echo "FAIL: IP_BASE дефолт не пуст"; exit 1; }
+grep -qE 'curl -fsSL --max-time 20 "\$2" -o "\$3"' scripts/install-trial.sh || { echo "FAIL: github-ветка не чистая"; exit 1; }
+echo "OK: trial ip_dl_trial шов (gateway+Bearer / github без заголовка)"
+

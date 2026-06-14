@@ -37,6 +37,21 @@ TRIAL_COMMIT="__COMMIT_PLACEHOLDER__"
 COURSE_URL="https://serditov.tonytrue.pro/"
 REPO_RAW="https://raw.githubusercontent.com/tonytrue92-beep/openclaw-test-drive/main"
 
+# ─── IP-доставка (token-gated, 2026-06-14) ───────────────────────
+# IP_BASE пуст → публичный github (как сейчас). Задан → gateway, Authorization
+# шлём ТОЛЬКО туда (github raw на чужой Bearer = 404). Токен — TRIAL_TOKEN/кэш.
+IP_BASE="${IP_BASE:-}"
+_ip_trial_token() {
+  printf '%s' "${TRIAL_TOKEN:-${TRIAL_TOKEN_PRESET:-$(cat "$HOME/.openclaw/trial-token" 2>/dev/null || true)}}"
+}
+ip_dl_trial() {  # $1=путь под /assets/  $2=github-url  $3=dest
+  if [[ -n "$IP_BASE" ]]; then
+    curl -fsSL --max-time 20 -H "Authorization: Bearer $(_ip_trial_token)" "${IP_BASE%/}/assets/$1" -o "$3" 2>/dev/null
+  else
+    curl -fsSL --max-time 20 "$2" -o "$3" 2>/dev/null
+  fi
+}
+
 # ─── Цвета ──────────────────────────────────────────────────────
 if [[ -t 1 ]]; then
   BOLD=$'\033[1m'; DIM=$'\033[2m'; NC=$'\033[0m'
@@ -600,7 +615,7 @@ echo ""
 WORKSPACE="$HOME/.openclaw/workspace-assistant"
 mkdir -p "$WORKSPACE"
 for f in IDENTITY AGENTS SOUL USER MEMORY; do
-  curl -fsSL --max-time 15 "${REPO_RAW}/templates/assistant/${f}.md" -o "${WORKSPACE}/${f}.md" 2>/dev/null \
+  ip_dl_trial "openclaw-test-drive/templates/assistant/${f}.md" "${REPO_RAW}/templates/assistant/${f}.md" "${WORKSPACE}/${f}.md" \
     && ok "${f}.md" \
     || warn "Не скачал ${f}.md — ассистент в базовом режиме"
 done
