@@ -34,6 +34,13 @@ fi
 
 TRIAL_VERSION="2026.06.09"
 TRIAL_COMMIT="__COMMIT_PLACEHOLDER__"
+
+# ─── ПИН ВЕРСИИ OpenClaw ──────────────────────────────────────────────────
+# Ставим КОНКРЕТНУЮ версию, НЕ @latest. Апстрим-релизы прилетали клиентам
+# автоматом и ломали установки (2026.6.6 → device-identity; opencode-go rename).
+# Тест-драйв тоже пинуем (синхронно с factory/agents): тест-клиент не должен
+# ловить сломанный latest. Бамп — вручную. Единая точка правки.
+OPENCLAW_VERSION="${OPENCLAW_VERSION:-2026.6.6}"
 COURSE_URL="https://serditov.tonytrue.pro/"
 REPO_RAW="https://raw.githubusercontent.com/tonytrue92-beep/openclaw-test-drive/main"
 
@@ -324,7 +331,7 @@ echo ""
 #  T1. Preflight — Node.js + OpenClaw движок (через npm)
 # ═══════════════════════════════════════════════════════════════
 #
-# Wave 34: ставим OpenClaw через `npm install -g openclaw@latest` —
+# Wave 34: ставим OpenClaw через `npm install -g openclaw@${OPENCLAW_VERSION}` —
 # тот же путь что в factory demo-install.sh. Кроссплатформенно
 # (macOS любой версии / Linux / VPS / Windows с Node), БЕЗ требования
 # macOS 15 (Sequoia) — это ограничение было у brew-cask, не у npm.
@@ -396,11 +403,11 @@ else
 fi
 
 # ─── OpenClaw движок через npm (как factory) ────────────────────
-# Всегда ставим/обновляем до АБСОЛЮТНО последней версии (Антон: тянуть
-# самый свежий движок). npm install -g openclaw@latest идемпотентен —
+# Ставим ЗАПИНЕННУЮ версию движка (OPENCLAW_VERSION, НЕ @latest) — апстрим
+# ломал клиентов. npm install -g openclaw@<пин> идемпотентен —
 # поставит, а если уже стоит — обновит. Если обновление не прошло, но
 # движок уже есть — продолжаем с текущим (не падаем).
-echo -e "   ${DIM}Ставлю/обновляю OpenClaw до последней версии (npm install -g openclaw@latest)...${NC}"
+echo -e "   ${DIM}Ставлю OpenClaw ${OPENCLAW_VERSION} (npm install -g openclaw@${OPENCLAW_VERSION})...${NC}"
 # Стабильность при плохой сети (как factory)
 npm config set fetch-retries 5 >/dev/null 2>&1 || true
 npm config set fetch-retry-maxtimeout 120000 >/dev/null 2>&1 || true
@@ -409,14 +416,14 @@ npm config set fetch-timeout 300000 >/dev/null 2>&1 || true
 _npm_err=$(mktemp -t openclaw-npm-err.XXXXXX 2>/dev/null || echo "/tmp/openclaw-npm-err.$$")
 # `|| true` — иначе под set -o pipefail падение npm убьёт скрипт ДО дружелюбного
 # обработчика ниже (проверка `command -v openclaw` + понятная подсказка).
-{ npm install -g openclaw@latest 2>"$_npm_err" || true; } | tail -8 | while IFS= read -r line; do
+{ npm install -g openclaw@${OPENCLAW_VERSION} 2>"$_npm_err" || true; } | tail -8 | while IFS= read -r line; do
   echo -e "   ${DIM}${line}${NC}"
 done
 
 if ! command -v openclaw &>/dev/null; then
   echo ""
   if grep -qiE 'EACCES|permission denied' "$_npm_err" 2>/dev/null; then
-    err "npm: нет прав на глобальную установку. Попробуй: sudo npm install -g openclaw@latest"
+    err "npm: нет прав на глобальную установку. Попробуй: sudo npm install -g openclaw@${OPENCLAW_VERSION}"
     echo -e "   ${DIM}Или настрой npm prefix без sudo: https://docs.npmjs.com/resolving-eacces-permissions-errors${NC}"
   else
     err "Не удалось поставить OpenClaw через npm. Последние строки ошибки:"

@@ -6,6 +6,14 @@
 
 ---
 
+## 2026-06-16 — Пин OpenClaw 2026.6.6 (не @latest)
+
+- **Тест-драйв ставит запиненную версию `openclaw@2026.6.6`, НЕ `@latest`.**
+  Апстрим-релизы прилетали клиентам автоматом и ломали установки (2026.6.6 →
+  device-identity; opencode→opencode-go). Введена точка
+  `OPENCLAW_VERSION="${OPENCLAW_VERSION:-2026.6.6}"` (синхронно с factory/agents).
+  smoke-guard не даёт вернуться на `@latest`. Бамп — вручную, все репы.
+
 ## 2026.06.10 — Хотфикс: провайдер opencode → opencode-go
 
 - OpenClaw переименовал провайдер; `opencode/deepseek-v4-flash-free` больше не
