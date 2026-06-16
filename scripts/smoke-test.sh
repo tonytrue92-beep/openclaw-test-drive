@@ -37,9 +37,14 @@ grep -q 'openclaw-agents-pack' "$TRIAL" \
   || true
 pass "REPO_RAW указывает на openclaw-test-drive"
 
-# ─── Движок: OpenClaw через npm + Node через nvm (кроссплатформенно) ─
-grep -q 'npm install -g openclaw@latest' "$TRIAL" \
-  || fail "trial не ставит OpenClaw через npm"
+# ─── Движок: OpenClaw через npm (ЗАПИНЕННАЯ версия, не @latest) + Node nvm ─
+grep -q '^OPENCLAW_VERSION=' "$TRIAL" \
+  || fail "trial: нет пина OPENCLAW_VERSION — вернулись на плавающую версию"
+if grep -q 'npm install -g openclaw@latest' "$TRIAL"; then
+  fail "trial: остался openclaw@latest — апстрим снова будет ломать тест-клиентов"
+fi
+grep -q 'npm install -g openclaw@${OPENCLAW_VERSION}' "$TRIAL" \
+  || fail "trial: установка движка не через пин OPENCLAW_VERSION"
 grep -q 'nvm install 22' "$TRIAL" \
   || fail "trial не ставит Node.js через nvm"
 grep -q 'brew install --cask openclaw' "$TRIAL" \
@@ -47,9 +52,9 @@ grep -q 'brew install --cask openclaw' "$TRIAL" \
   || true
 pass "движок: OpenClaw через npm + Node через nvm"
 
-# Движок всегда обновляется до latest (а не только при отсутствии)
-grep -q 'Ставлю/обновляю OpenClaw до последней' "$TRIAL" \
-  || fail "trial не обновляет движок до latest (должно ставить/обновлять всегда)"
+# Движок всегда приводится к ЗАПИНЕННОЙ версии (а не только при отсутствии)
+grep -q 'Ставлю OpenClaw ${OPENCLAW_VERSION}' "$TRIAL" \
+  || fail "trial не ставит запиненную версию движка (должно ставить/выравнивать всегда)"
 pass "движок: всегда подтягивается последняя версия OpenClaw (ставит/обновляет)"
 
 # ─── Xcode CLT auto-install (на чистом маке нет git/компиляторов) ──
