@@ -485,8 +485,8 @@ attempts=0
 while [[ $attempts -lt 3 ]]; do
   attempts=$((attempts + 1))
   echo -e "   ${BOLD}${WHITE}Вставь API-ключ opencode.ai:${NC}"
-  echo -e "   ${DIM}(символы не отображаются при вводе — это нормально)${NC}"
-  read -rs OPENCODE_KEY
+  echo -e "   ${DIM}(символы видны при вводе — это нормально)${NC}"
+  read -r OPENCODE_KEY
   echo ""
   OPENCODE_KEY=$(printf '%s' "$OPENCODE_KEY" | tr -d '[:space:]')
   if [[ -z "$OPENCODE_KEY" ]]; then
@@ -528,8 +528,8 @@ attempts=0
 while [[ $attempts -lt 3 ]]; do
   attempts=$((attempts + 1))
   echo -e "   ${BOLD}${WHITE}🤖 Токен бота для Ассистента:${NC}"
-  echo -e "   ${DIM}(символы не отображаются при вводе — это нормально)${NC}"
-  read -rs BOT_TOKEN
+  echo -e "   ${DIM}(символы видны при вводе — это нормально)${NC}"
+  read -r BOT_TOKEN
   echo ""
   BOT_TOKEN=$(printf '%s' "$BOT_TOKEN" | tr -d '[:space:]')
   if [[ -z "$BOT_TOKEN" ]]; then
