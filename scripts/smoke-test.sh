@@ -180,3 +180,11 @@ grep -q 'IP_BASE="${IP_BASE:-}"' scripts/install-trial.sh || { echo "FAIL: IP_BA
 grep -qE 'curl -fsSL --max-time 20 "\$2" -o "\$3"' scripts/install-trial.sh || { echo "FAIL: github-ветка не чистая"; exit 1; }
 echo "OK: trial ip_dl_trial шов (gateway+Bearer / github без заголовка)"
 
+# ─── Все токены/ключи вводятся ВИДИМО (решение Антона, как в factory/agents) ───
+if grep -qE 'read -rs |read -r -s ' scripts/install-trial.sh; then
+  fail "trial: остался скрытый ввод (-s) токена/ключа — все должны быть видимыми"
+fi
+grep -q 'символы видны при вводе' scripts/install-trial.sh \
+  || fail "trial: подпись ввода токена не обновлена на «символы видны»"
+echo "OK: токены/ключи (opencode key, bot token) вводятся видимо — нет read -s"
+
