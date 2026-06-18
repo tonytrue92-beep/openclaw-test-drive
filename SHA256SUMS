@@ -1,15 +1,15 @@
 # SHA-256 checksums for openclaw-test-drive
-# Generated: 2026-06-17 06:44:28 UTC
-# Commit: 51d668c
+# Generated: 2026-06-18 08:58:55 UTC
+# Commit: 52a10d6
 #
 # Verify a downloaded script matches the committed version:
 #   curl -fsSL <raw-url> | shasum -a 256
 #   (or on Linux: sha256sum <file>)
 #
 
-977884d9965cea136ae56d65ed2f78b3f54c1b5a669c2115d7bfd3f6c46080f0  scripts/install-trial.sh
+9a0ca63ec7904ad056104763638fc540167b084820e3c947b654039e85deaa3c  scripts/install-trial.sh
 dba0b6bb95026115e6ba4e939a0f21d47344fab5001287ee4cb852c648bad299  scripts/security-audit.sh
-d55913b73fa9cf0d54b12bc6a7915b6f2e6201529b8a04e884bd7a61820ada96  scripts/smoke-test.sh
+544ad3a3b504002546c31e3b02253044dca421aa5168837eb2c7d8ba82b388da  scripts/smoke-test.sh
 495ff9a4c910ff1dfcc1be6c04f539051ef2350baee3c9f4d26601dfa22053c7  scripts/update-checksums.sh
 2322c21a936622d4e0666a4277b05474d1a298e211a90500a7d1a4786314b7c7  templates/assistant/AGENTS.md
 1ba252889d94180efd0bfcc01550b11871cefe19fae13bfd5c36a1dcc27dc92c  templates/assistant/IDENTITY.md
