@@ -52,11 +52,18 @@ _ip_trial_token() {
   printf '%s' "${TRIAL_TOKEN:-${TRIAL_TOKEN_PRESET:-$(cat "$HOME/.openclaw/trial-token" 2>/dev/null || true)}}"
 }
 ip_dl_trial() {  # $1=путь под /assets/  $2=github-url  $3=dest
-  if [[ -n "$IP_BASE" ]]; then
-    curl -fsSL --max-time 20 -H "Authorization: Bearer $(_ip_trial_token)" "${IP_BASE%/}/assets/$1" -o "$3" 2>/dev/null
-  else
-    curl -fsSL --max-time 20 "$2" -o "$3" 2>/dev/null
-  fi
+  # 3 попытки с паузой: РФ-origin без CDN моргает (curl 28). Совпадает с
+  # ip_dl в factory/agents.
+  local _try _rc=1
+  for _try in 1 2 3; do
+    if [[ -n "$IP_BASE" ]]; then
+      curl -fsSL --connect-timeout 10 --max-time 25 -H "Authorization: Bearer $(_ip_trial_token)" "${IP_BASE%/}/assets/$1" -o "$3" 2>/dev/null && { _rc=0; break; }
+    else
+      curl -fsSL --connect-timeout 10 --max-time 25 "$2" -o "$3" 2>/dev/null && { _rc=0; break; }
+    fi
+    [[ $_try -lt 3 ]] && sleep 2
+  done
+  return $_rc
 }
 
 # ─── Цвета ──────────────────────────────────────────────────────
