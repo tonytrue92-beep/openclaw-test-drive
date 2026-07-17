@@ -1,16 +1,16 @@
 # SHA-256 checksums for openclaw-test-drive
-# Generated: 2026-07-17 19:34:37 UTC
-# Commit: ded2645
+# Generated: 2026-07-17 20:04:03 UTC
+# Commit: 0787ba3
 #
 # Verify a downloaded script matches the committed version:
 #   curl -fsSL <raw-url> | shasum -a 256
 #   (or on Linux: sha256sum <file>)
 #
 
-b212ff3bb4659bd8002e5521f27509beaac7380b3d0c993cbddddec6d2a383b5  scripts/install-trial.sh
+fcd97c354f1ce288bdcf19776fe9e2387dff082259ab5a483037d7355d968b53  scripts/install-trial.sh
 dba0b6bb95026115e6ba4e939a0f21d47344fab5001287ee4cb852c648bad299  scripts/security-audit.sh
-493d5f4b67aecd55a73bf6566aa4c0f902c6049bcef935dd88c6c1a9e5f810b6  scripts/smoke-test.sh
-7958b3b1fd16aaa735ed30a412a46af033c43adeb2d5ff91741ef37ed6a960ad  scripts/token-rotation-test.sh
+3990b5b06070a3f141e9129c809e15ac35b979e81b8466ff34a45586cc5ae840  scripts/smoke-test.sh
+fb3b5a0d1c558a772c081dcea027a0e93043904efa538078182a2fd4feef2782  scripts/token-rotation-test.sh
 495ff9a4c910ff1dfcc1be6c04f539051ef2350baee3c9f4d26601dfa22053c7  scripts/update-checksums.sh
 2322c21a936622d4e0666a4277b05474d1a298e211a90500a7d1a4786314b7c7  templates/assistant/AGENTS.md
 1ba252889d94180efd0bfcc01550b11871cefe19fae13bfd5c36a1dcc27dc92c  templates/assistant/IDENTITY.md

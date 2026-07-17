@@ -1,8 +1,8 @@
-# Бриф технарю — OC4-TRY-токены после оплаты (Prodamus) + @AITeamVIPBot
+# Бриф технарю — OC5-TRY-токены после оплаты (Prodamus) + @AITeamVIPBot
 
 ## Задача
 
-Бот `@AITeamVIPBot` должен выдавать **OC4-TRY-токены ПОСЛЕ успешной оплаты**
+Бот `@AITeamVIPBot` должен выдавать **OC5-TRY-токены ПОСЛЕ успешной оплаты**
 через **Prodamus** (платный вход в тест-драйв). Это новый тариф `TRY`
 рядом с существующими `VIP / STD / SUB / HRM`.
 
@@ -11,14 +11,15 @@
 
 ## Ключ и механизм
 
-TRY использует текущий Ed25519-ключ OC4, общий с VIP/STD/SUB/HRM. При
-ротации ключа бот и все установщики обновляются одной поставкой; v1/v2/v3
-токены больше не принимаются. Отличие TRY — в tier внутри подписанного payload.
+TRY использует текущий Ed25519-ключ OC5, общий с VIP/STD/SUB/HRM. При
+ротации ключа бот и все установщики обновляются одной поставкой; v1/v2/v3/OC4
+токены больше не принимаются. Отличие TRY — в tier и уникальном nonce внутри
+подписанного payload.
 
 ## Формат токена
 
 ```
-OC4-TRY-<hash16>-<tg_id>-<подпись_b64url>
+OC5-TRY-<hash16>-<tg_id>-<nonce24>-<подпись_b64url>
 ```
 
 - `hash16` — 16 символов `[A-F0-9]` (UPPERCASE hex). Привяжи к платежу:
@@ -27,6 +28,8 @@ OC4-TRY-<hash16>-<tg_id>-<подпись_b64url>
   логов/сверки с оплатой; безопасность даёт подпись.
 - `tg_id` — Telegram user_id покупателя (5–15 цифр). **Обязателен** — в
   токен зашит TG, установщик ставит на него `allowFrom` (анти-шаринг).
+- `nonce24` — 24 символа `[A-F0-9]`, новый при каждой выдаче. Он делает
+  перевыпуск отдельным credential, который можно немедленно отозвать по hash.
 - `подпись_b64url` — Ed25519-подпись (base64url **без padding**, ~86 симв).
 
 ## Что подписывать
@@ -34,7 +37,7 @@ OC4-TRY-<hash16>-<tg_id>-<подпись_b64url>
 Payload (UTF-8, ровно так, с разделителем `|`):
 
 ```
-OC4|TRY|<hash16>|<tg_id>
+OC5|TRY|<hash16>|<tg_id>|<nonce24>
 ```
 
 Подпись тем же приватным ключом, что для остальных тарифов.
@@ -47,20 +50,21 @@ const crypto = require('crypto');
 function makeTryToken(tgId, orderId, privateKeyPem) {
   const hash16 = crypto.createHash('sha256')
     .update(String(orderId)).digest('hex').slice(0, 16).toUpperCase();
-  const payload = `OC4|TRY|${hash16}|${tgId}`;
+  const nonce = crypto.randomBytes(12).toString('hex').toUpperCase();
+  const payload = `OC5|TRY|${hash16}|${tgId}|${nonce}`;
   const sig = crypto.sign(
     null,
     Buffer.from(payload, 'utf8'),
     crypto.createPrivateKey(privateKeyPem)
   );
-  return `OC4-TRY-${hash16}-${tgId}-${sig.toString('base64url')}`;
+  return `OC5-TRY-${hash16}-${tgId}-${nonce}-${sig.toString('base64url')}`;
 }
 ```
 
 Установщик проверяет это так (для справки, менять не нужно):
 
 ```js
-crypto.verify(null, Buffer.from(`OC4|TRY|${hash16}|${tgId}`), PUBLIC_KEY,
+crypto.verify(null, Buffer.from(`OC5|TRY|${hash16}|${tgId}|${nonce}`), PUBLIC_KEY,
               Buffer.from(sigB64, 'base64url'));
 ```
 
@@ -81,7 +85,8 @@ crypto.verify(null, Buffer.from(`OC4|TRY|${hash16}|${tgId}`), PUBLIC_KEY,
 5. Клиент открывает бота → бот по `claim_code` находит заказ, видит что
    он `paid` и ещё не погашен → теперь знает `tg_id` (из апдейта) →
    `token = makeTryToken(tg_id, order_id, PRIVATE_KEY_PEM)` → **DM-ит**
-   команду установки. Помечает заказ `redeemed`.
+   команду установки. Помечает заказ `redeemed`; при повторной выдаче сохраняет
+   новый token hash и вносит предыдущий в `ip_token_revocations`.
 
 ⚠️ **Анти-фрод для B (важно):**
 - `start=<claim_code>` — **неугадываемый** (случайный, НЕ сам `order_id`)
@@ -104,10 +109,10 @@ crypto.verify(null, Buffer.from(`OC4|TRY|${hash16}|${tgId}`), PUBLIC_KEY,
 
 macOS / Linux — вставь в Терминал:
 
-bash <(curl -fsSL https://raw.githubusercontent.com/tonytrue92-beep/openclaw-test-drive/main/scripts/install-trial.sh) --token OC4-TRY-XXXX...
+bash <(curl -fsSL https://raw.githubusercontent.com/tonytrue92-beep/openclaw-test-drive/main/scripts/install-trial.sh) --token OC5-TRY-XXXX...
 ```
 
-(подставь реальный токен вместо `OC4-TRY-XXXX...`).
+(подставь реальный токен вместо `OC5-TRY-XXXX...`; срок — 7 дней).
 
 ## Проверки/нюансы
 
@@ -120,14 +125,16 @@ bash <(curl -fsSL https://raw.githubusercontent.com/tonytrue92-beep/openclaw-tes
   не примет.
 - **tg_id 5–15 цифр**, реального аккаунта покупателя — в токен зашит TG,
   установщик ставит на него `allowFrom` (бот ответит только ему).
-- Сеть для проверки токена установщику НЕ нужна (проверка локальная
-  публичным ключом). Бот может лежать — уже выданные токены работают.
-- **Отзыв:** проверка локальная, мгновенного отзыва нет (как и у платных).
-  Если нужен — отдельная история (revocation-list endpoint).
+- До любой установки обязательна онлайн-проверка `https://api.tonytrue.pro/ip/verify`
+  с Bearer token по HTTPS. Недоступность сервиса, отзыв или возраст токена более
+  7 дней — terminal failure без local mutation. Локальная Ed25519-проверка после
+  установки Node остаётся вторым защитным слоем.
+- **Отзыв:** при перевыпуске bot сохраняет hash прошлого token в
+  `ip_token_revocations`; сервис статуса отклоняет его немедленно.
 
 ## Лимиты / антифрод (на твоё усмотрение)
 
-- 1 активный TRY на оплаченный `order_id`.
+- 1 активный TRY на оплаченный `order_id`; новый выпуск отзывает предыдущий.
 - Идемпотентность webhook (Prodamus может прислать повтор) — не выдавать
   два токена за один платёж.
 - Проверять подпись webhook от Prodamus (у них есть HMAC-подпись) — чтобы

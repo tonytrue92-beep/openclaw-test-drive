@@ -6,7 +6,7 @@ set -euo pipefail
 #
 #  ⚠️  ЭТО ОТДЕЛЬНЫЙ УСТАНОВЩИК. Не связан с install-agents.sh.
 #      Ставит OpenClaw движок + ОДНОГО агента-ассистента (демо).
-#      ПО ТОКЕНУ (после оплаты): OC4-TRY-токен выдаёт @AITeamVIPBot после
+#      ПО ТОКЕНУ (после оплаты): OC5-TRY-токен выдаёт @AITeamVIPBot после
 #      успешной оплаты (Prodamus). Тот же Ed25519-механизм, что в платном.
 #
 #  Агент-ассистент каждые 2-3 сообщения мягко предлагает полную версию
@@ -103,16 +103,18 @@ export NVM_DIR="$HOME/.nvm"
 #  TRY-токен доступа (тот же механизм, что в платном install-agents.sh)
 # ═══════════════════════════════════════════════════════════════
 #
-# Формат:  OC4-TRY-<hash16>-<tg_id>-<подпись_b64url>
-# Подпись: Ed25519 над "OC4|TRY|<hash16>|<tg_id>" приватным ключом @AITeamVIPBot.
-# Проверяется встроенным ПУБЛИЧНЫМ ключом (тот же, что у платных тарифов) —
-# приватный есть только у бота. Сеть для проверки не нужна.
+# Формат:  OC5-TRY-<hash16>-<tg_id>-<nonce24>-<подпись_b64url>
+# Подпись: Ed25519 над "OC5|TRY|<hash16>|<tg_id>|<nonce24>" приватным ключом @AITeamVIPBot.
+# Подпись дополнительно проверяется встроенным ПУБЛИЧНЫМ ключом (тот же, что у
+# платных тарифов); приватный есть только у бота. До установки обязательна
+# online-проверка статуса, чтобы применить отзыв и семидневный срок.
 #
 # Двухфазно (т.к. node ставится только на Шаге 1):
 #   • Фаза A (до установки) — формат + извлечение TG_ID. Мгновенно,
 #     блокирует пустой/мусорный токен ДО любой установки.
 #   • Фаза B (после установки node) — крипто-проверка подписи через node.
 TRIAL_TOKEN_CACHE="$HOME/.openclaw/trial-token"
+TRIAL_TOKEN_STATUS_URL="https://api.tonytrue.pro/ip/verify"
 TRIAL_PUBLIC_KEY_PEM=$(cat <<'PEMEOF'
 -----BEGIN PUBLIC KEY-----
 MCowBQYDK2VwAyEAPbs+nSBSaxOGpTk+WrP71ufLO8PvZmBuIbWTzmbfO1g=
@@ -135,7 +137,7 @@ _trial_sanitize_token() {
 # Формат-проверка (без крипто). Set TRIAL_TG_ID. 0 = форма верна.
 _trial_token_format_ok() {
   local t="$1"
-  if [[ "$t" =~ ^OC4-TRY-[A-F0-9]{16}-([0-9]{5,15})-[A-Za-z0-9_-]{80,100}$ ]]; then
+  if [[ "$t" =~ ^OC5-TRY-[A-F0-9]{16}-([0-9]{5,15})-[A-F0-9]{24}-[A-Za-z0-9_-]{80,100}$ ]]; then
     TRIAL_TG_ID="${BASH_REMATCH[1]}"
     return 0
   fi
@@ -146,13 +148,14 @@ _trial_token_format_ok() {
 # 0 = подпись валидна, иначе != 0.
 _trial_token_verify_sig() {
   local t="$1"
-  local hash_part tg_part sig_part
+  local hash_part tg_part nonce_part sig_part
   hash_part=$(printf '%s' "$t" | cut -d'-' -f3)
   tg_part=$(printf '%s' "$t" | cut -d'-' -f4)
-  sig_part=$(printf '%s' "$t" | cut -d'-' -f5-)
+  nonce_part=$(printf '%s' "$t" | cut -d'-' -f5)
+  sig_part=$(printf '%s' "$t" | cut -d'-' -f6-)
   command -v node >/dev/null 2>&1 || return 2
   TRIAL_PUB="$TRIAL_PUBLIC_KEY_PEM" \
-  TRIAL_PAYLOAD="OC4|TRY|${hash_part}|${tg_part}" \
+  TRIAL_PAYLOAD="OC5|TRY|${hash_part}|${tg_part}|${nonce_part}" \
   TRIAL_SIG="$sig_part" node - >/dev/null 2>&1 <<'JS'
 const crypto = require('crypto');
 try {
@@ -162,6 +165,23 @@ try {
   process.exit(crypto.verify(null, payload, pk, sig) ? 0 : 1);
 } catch { process.exit(1); }
 JS
+}
+
+# Mandatory, fail-closed status check before any local installation mutation.
+# The token is supplied only as an Authorization header to the exact allowlisted
+# HTTPS endpoint; its value never appears in an URL or output.
+_trial_token_verify_online() {
+  local response
+  response=$(mktemp -t trial-token-status.XXXXXX) || return 1
+  chmod 600 "$response" 2>/dev/null || true
+  if curl -fsS --proto '=https' --tlsv1.2 --connect-timeout 10 --max-time 20 \
+      -H "Authorization: Bearer ${TRIAL_TOKEN}" "$TRIAL_TOKEN_STATUS_URL" -o "$response" 2>/dev/null \
+      && grep -qE '"ok"[[:space:]]*:[[:space:]]*true' "$response"; then
+    rm -f "$response"
+    return 0
+  fi
+  rm -f "$response"
+  return 1
 }
 
 # Фаза A: получить токен (флаг/env → кэш → prompt) + формат-проверка.
@@ -185,7 +205,7 @@ _trial_token_gate_format() {
     t=$(_trial_sanitize_token "$t")
     if [[ -z "$t" ]]; then warn "Пустой ввод."; continue; fi
     if _trial_token_format_ok "$t"; then TRIAL_TOKEN="$t"; return 0; fi
-    warn "Нужен новый токен OC4-TRY-… Проверь, что скопировал целиком."
+    warn "Нужен новый токен OC5-TRY-… Проверь, что скопировал целиком."
   done
   return 1
 }
@@ -244,13 +264,13 @@ while [[ $# -gt 0 ]]; do
 AI TEAM 2.0 — ТЕСТ-ДРАЙВ установщик v${TRIAL_VERSION}
 
 Тест-драйв: OpenClaw + один агент-ассистент.
-Нужен OC4-TRY-токен (выдаётся после оплаты, @AITeamVIPBot). Полная версия — ${COURSE_URL}
+Нужен OC5-TRY-токен (выдаётся после оплаты, @AITeamVIPBot). Он действует 7 дней и проверяется онлайн. Полная версия — ${COURSE_URL}
 
 Usage:
-  bash <(curl -fsSL .../install-trial.sh) --token OC4-TRY-XXXX [флаги]
+  bash <(curl -fsSL .../install-trial.sh) --token OC5-TRY-XXXX [флаги]
 
 Options:
-  --token, --trial-token <T>  OC4-TRY-токен из @AITeamVIPBot (или env TRIAL_TOKEN)
+  --token, --trial-token <T>  OC5-TRY-токен из @AITeamVIPBot (или env TRIAL_TOKEN)
   --vps, --headless           Режим VPS/сервера (без GUI, dashboard через SSH)
   --uninstall                 Удалить OpenClaw + агента (для чистой переустановки)
   --version                   Показать версию
@@ -312,7 +332,7 @@ divider
 echo ""
 
 # ═══════════════════════════════════════════════════════════════
-#  Доступ — OC4-TRY-токен из @AITeamVIPBot (обязателен)
+#  Доступ — OC5-TRY-токен из @AITeamVIPBot (обязателен)
 # ═══════════════════════════════════════════════════════════════
 # Фаза A: формат-проверка ДО любой установки. Полную крипто-проверку
 # подписи делаем после Шага 1 (там появляется node).
@@ -320,16 +340,21 @@ echo -e "${BOLD}${WHITE}🔑 Доступ — нужен токен из @AITeam
 echo ""
 echo -e "${DIM}   Доступ по токену (выдаётся после оплаты):${NC}"
 echo -e "   ${CYAN}1.${NC} Открой ${BOLD}@AITeamVIPBot${NC} в Telegram → /start"
-echo -e "   ${CYAN}2.${NC} Оплати по ссылке — бот пришлёт новый OC4-TRY-токен"
+echo -e "   ${CYAN}2.${NC} Оплати по ссылке — бот пришлёт новый OC5-TRY-токен"
 echo -e "   ${CYAN}3.${NC} Вставь токен сюда"
 echo ""
 if ! _trial_token_gate_format; then
   echo ""
-  err "Без токена установка невозможна. Оплати и получи новый OC4-TRY-токен в @AITeamVIPBot."
+  err "Без токена установка невозможна. Оплати и получи новый OC5-TRY-токен в @AITeamVIPBot."
   echo -e "${BOLD}${CYAN}      https://t.me/AITeamVIPBot${NC}"
   exit 1
 fi
-ok "Токен принят. Подпись проверю после установки движка."
+if ! _trial_token_verify_online; then
+  err "Онлайн-проверка не пройдена: токен отозван, истёк (7 дней) или сервис недоступен."
+  echo -e "${DIM}   Получи свежий токен в @AITeamVIPBot и проверь интернет-соединение.${NC}"
+  exit 1
+fi
+ok "Токен принят. Онлайн-статус подтверждён; подпись дополнительно проверю после установки движка."
 echo ""
 divider
 echo ""
@@ -450,11 +475,11 @@ echo ""
 echo -e "${DIM}   Проверяю подпись токена...${NC}"
 if _trial_token_verify_sig "$TRIAL_TOKEN"; then
   _trial_token_save_cache
-  ok "Токен подтверждён (OC4-TRY-тариф, TG ID ${TRIAL_TG_ID})"
+  ok "Токен подтверждён (OC5-TRY-тариф, TG ID ${TRIAL_TG_ID})"
 else
   echo ""
   err "Подпись токена не прошла проверку — повреждён, подделан или отозван."
-  echo -e "${DIM}   Получи свежий OC4-TRY-токен в @AITeamVIPBot и запусти снова.${NC}"
+  echo -e "${DIM}   Получи свежий OC5-TRY-токен в @AITeamVIPBot и запусти снова.${NC}"
   echo -e "${BOLD}${CYAN}      https://t.me/AITeamVIPBot${NC}"
   exit 1
 fi
@@ -575,7 +600,7 @@ ok "Telegram-бот @${username} подключён"
 echo ""
 TG_USER_ID="$TRIAL_TG_ID"
 if [[ ! "$TG_USER_ID" =~ ^[0-9]+$ ]]; then
-  err "В проверенном OC4-TRY-токене нет корректного Telegram ID. Установка остановлена."
+  err "В проверенном OC5-TRY-токене нет корректного Telegram ID. Установка остановлена."
   exit 1
 fi
 openclaw config set channels.telegram.dmPolicy allowlist &>/dev/null || true

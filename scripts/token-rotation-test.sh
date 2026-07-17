@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Behavioral regression: trial accepts only freshly issued OC4-TRY tokens.
+# Behavioral regression: trial accepts only freshly issued OC5-TRY tokens.
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
@@ -22,10 +22,11 @@ const crypto = require("crypto");
 const fs = require("fs");
 const hash = "ABCDEF0123456789";
 const tg = "123456789";
-const payload = `OC4|TRY|${hash}|${tg}`;
+const nonce = "ABCDEF0123456789ABCDEF01";
+const payload = `OC5|TRY|${hash}|${tg}|${nonce}`;
 const key = crypto.createPrivateKey(fs.readFileSync(process.env.TEST_PRIVATE_KEY));
 const signature = crypto.sign(null, Buffer.from(payload), key).toString("base64url");
-process.stdout.write(`OC4-TRY-${hash}-${tg}-${signature}`);
+process.stdout.write(`OC5-TRY-${hash}-${tg}-${nonce}-${signature}`);
 ')"
 
 _trial_token_format_ok "$token"
