@@ -11,10 +11,10 @@
 
 ## Доступ — токен из бота
 
-Доступ выдаётся по **TRY-токену** после оплаты:
+Доступ выдаётся по новому **OC4-TRY-токену** после оплаты:
 
 1. Открой **[@AITeamVIPBot](https://t.me/AITeamVIPBot)** в Telegram → /start
-2. Оплати по ссылке (Prodamus) — бот пришлёт TRY-токен (привязан к твоему Telegram)
+2. Оплати по ссылке (Prodamus) — бот пришлёт OC4-TRY-токен (привязан к твоему Telegram)
 3. Запусти команду установки с этим токеном
 
 Токен подписан Ed25519 (тот же механизм, что у платных тарифов) и
@@ -26,17 +26,17 @@
 macOS / Linux:
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/tonytrue92-beep/openclaw-test-drive/main/scripts/install-trial.sh) --token TRY-XXXX
+bash <(curl -fsSL https://raw.githubusercontent.com/tonytrue92-beep/openclaw-test-drive/main/scripts/install-trial.sh) --token OC4-TRY-XXXX
 ```
 
 На сервере (VPS, без GUI):
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/tonytrue92-beep/openclaw-test-drive/main/scripts/install-trial.sh) --token TRY-XXXX --vps
+bash <(curl -fsSL https://raw.githubusercontent.com/tonytrue92-beep/openclaw-test-drive/main/scripts/install-trial.sh) --token OC4-TRY-XXXX --vps
 ```
 
 Можно и без `--token` — установщик спросит токен интерактивно. Или
-через переменную: `TRIAL_TOKEN=TRY-XXXX bash <(curl …)`.
+через переменную: `TRIAL_TOKEN=OC4-TRY-XXXX bash <(curl …)`.
 
 Переустановить с нуля (сначала удалить):
 
@@ -50,14 +50,14 @@ bash <(curl -fsSL https://raw.githubusercontent.com/tonytrue92-beep/openclaw-tes
 
 Полностью автоматически, по шагам (клиент только вставляет ключи):
 
-1. **Доступ** — проверяет TRY-токен (формат сразу, подпись Ed25519 после
+1. **Доступ** — проверяет OC4-TRY-токен (формат сразу, подпись Ed25519 после
    установки движка). Без валидного токена установка не идёт.
 2. **Движок** — ставит Node.js (через nvm) и OpenClaw (`npm install -g openclaw`).
    На macOS сам доустанавливает Xcode Command Line Tools.
 3. **Мозги** — подключает бесплатную модель `opencode-go/deepseek-v4-flash`
    (карта не нужна). Открывает opencode.ai в браузере для получения ключа.
 4. **Telegram** — подключает бота (токен из @BotFather). TG ID владельца
-   берётся **из TRY-токена** — клиента не спрашивают (бот уже знает его).
+   берётся **из OC4-TRY-токена** — клиента не спрашивают (бот уже знает его).
 5. **Финальная сборка** — прогоняет `openclaw onboard` в авто-режиме +
    поднимает gateway (страховочно, проверенными командами).
 6. **Быстрый онбординг** — понятный русский чек-лист ✓/✗: движок, модель,
@@ -72,7 +72,7 @@ bash <(curl -fsSL https://raw.githubusercontent.com/tonytrue92-beep/openclaw-tes
 
 | Флаг | Что делает |
 |---|---|
-| `--token`, `--trial-token <T>` | TRY-токен из @AITeamVIPBot (или env `TRIAL_TOKEN`) |
+| `--token`, `--trial-token <T>` | OC4-TRY-токен из @AITeamVIPBot (или env `TRIAL_TOKEN`) |
 | `--vps`, `--headless` | Режим VPS/сервера (dashboard через SSH) |
 | `--uninstall`, `--reset` | Удалить OpenClaw + агента (для чистой переустановки) |
 | `--version` | Показать версию |
@@ -83,7 +83,7 @@ bash <(curl -fsSL https://raw.githubusercontent.com/tonytrue92-beep/openclaw-tes
 ## Связь с другими репозиториями
 
 - **Этот репо (`openclaw-test-drive`)** — тест-драйв (1 агент,
-  лидогенерация). По TRY-токену из @AITeamVIPBot — выдаётся после оплаты (Prodamus).
+  лидогенерация). По OC4-TRY-токену из @AITeamVIPBot — выдаётся после оплаты (Prodamus).
 - **`openclaw-agents-pack`** — платный продукт: полная команда агентов
   (Base / Pro / Hermes), требует курс-токен. Это то, что мы продаём.
 - **`openclaw-factory`** — установщик самого движка OpenClaw (первая

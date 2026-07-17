@@ -6,7 +6,7 @@ set -euo pipefail
 #
 #  ⚠️  ЭТО ОТДЕЛЬНЫЙ УСТАНОВЩИК. Не связан с install-agents.sh.
 #      Ставит OpenClaw движок + ОДНОГО агента-ассистента (демо).
-#      ПО ТОКЕНУ (после оплаты): TRY-токен выдаёт @AITeamVIPBot после
+#      ПО ТОКЕНУ (после оплаты): OC4-TRY-токен выдаёт @AITeamVIPBot после
 #      успешной оплаты (Prodamus). Тот же Ed25519-механизм, что в платном.
 #
 #  Агент-ассистент каждые 2-3 сообщения мягко предлагает полную версию
@@ -103,8 +103,8 @@ export NVM_DIR="$HOME/.nvm"
 #  TRY-токен доступа (тот же механизм, что в платном install-agents.sh)
 # ═══════════════════════════════════════════════════════════════
 #
-# Формат:  TRY-<hash16>-<tg_id>-<подпись_b64url>
-# Подпись: Ed25519 над "TRY|<hash16>|<tg_id>" приватным ключом @AITeamVIPBot.
+# Формат:  OC4-TRY-<hash16>-<tg_id>-<подпись_b64url>
+# Подпись: Ed25519 над "OC4|TRY|<hash16>|<tg_id>" приватным ключом @AITeamVIPBot.
 # Проверяется встроенным ПУБЛИЧНЫМ ключом (тот же, что у платных тарифов) —
 # приватный есть только у бота. Сеть для проверки не нужна.
 #
@@ -115,7 +115,7 @@ export NVM_DIR="$HOME/.nvm"
 TRIAL_TOKEN_CACHE="$HOME/.openclaw/trial-token"
 TRIAL_PUBLIC_KEY_PEM=$(cat <<'PEMEOF'
 -----BEGIN PUBLIC KEY-----
-MCowBQYDK2VwAyEAQIjPPB5LB1R3outrY1HMaVRVUB2tkDhHtpC8LLJ+8rA=
+MCowBQYDK2VwAyEAPbs+nSBSaxOGpTk+WrP71ufLO8PvZmBuIbWTzmbfO1g=
 -----END PUBLIC KEY-----
 PEMEOF
 )
@@ -135,7 +135,7 @@ _trial_sanitize_token() {
 # Формат-проверка (без крипто). Set TRIAL_TG_ID. 0 = форма верна.
 _trial_token_format_ok() {
   local t="$1"
-  if [[ "$t" =~ ^TRY-[A-F0-9]{16}-([0-9]{5,15})-[A-Za-z0-9_-]{80,100}$ ]]; then
+  if [[ "$t" =~ ^OC4-TRY-[A-F0-9]{16}-([0-9]{5,15})-[A-Za-z0-9_-]{80,100}$ ]]; then
     TRIAL_TG_ID="${BASH_REMATCH[1]}"
     return 0
   fi
@@ -147,12 +147,12 @@ _trial_token_format_ok() {
 _trial_token_verify_sig() {
   local t="$1"
   local hash_part tg_part sig_part
-  hash_part=$(printf '%s' "$t" | cut -d'-' -f2)
-  tg_part=$(printf '%s' "$t" | cut -d'-' -f3)
-  sig_part=$(printf '%s' "$t" | cut -d'-' -f4-)
+  hash_part=$(printf '%s' "$t" | cut -d'-' -f3)
+  tg_part=$(printf '%s' "$t" | cut -d'-' -f4)
+  sig_part=$(printf '%s' "$t" | cut -d'-' -f5-)
   command -v node >/dev/null 2>&1 || return 2
   TRIAL_PUB="$TRIAL_PUBLIC_KEY_PEM" \
-  TRIAL_PAYLOAD="TRY|${hash_part}|${tg_part}" \
+  TRIAL_PAYLOAD="OC4|TRY|${hash_part}|${tg_part}" \
   TRIAL_SIG="$sig_part" node - >/dev/null 2>&1 <<'JS'
 const crypto = require('crypto');
 try {
@@ -185,7 +185,7 @@ _trial_token_gate_format() {
     t=$(_trial_sanitize_token "$t")
     if [[ -z "$t" ]]; then warn "Пустой ввод."; continue; fi
     if _trial_token_format_ok "$t"; then TRIAL_TOKEN="$t"; return 0; fi
-    warn "Формат токена не похож на TRY-… Проверь, что скопировал целиком."
+    warn "Нужен новый токен OC4-TRY-… Проверь, что скопировал целиком."
   done
   return 1
 }
@@ -244,13 +244,13 @@ while [[ $# -gt 0 ]]; do
 AI TEAM 2.0 — ТЕСТ-ДРАЙВ установщик v${TRIAL_VERSION}
 
 Тест-драйв: OpenClaw + один агент-ассистент.
-Нужен TRY-токен (выдаётся после оплаты, @AITeamVIPBot). Полная версия — ${COURSE_URL}
+Нужен OC4-TRY-токен (выдаётся после оплаты, @AITeamVIPBot). Полная версия — ${COURSE_URL}
 
 Usage:
-  bash <(curl -fsSL .../install-trial.sh) --token TRY-XXXX [флаги]
+  bash <(curl -fsSL .../install-trial.sh) --token OC4-TRY-XXXX [флаги]
 
 Options:
-  --token, --trial-token <T>  TRY-токен из @AITeamVIPBot (или env TRIAL_TOKEN)
+  --token, --trial-token <T>  OC4-TRY-токен из @AITeamVIPBot (или env TRIAL_TOKEN)
   --vps, --headless           Режим VPS/сервера (без GUI, dashboard через SSH)
   --uninstall                 Удалить OpenClaw + агента (для чистой переустановки)
   --version                   Показать версию
@@ -312,7 +312,7 @@ divider
 echo ""
 
 # ═══════════════════════════════════════════════════════════════
-#  Доступ — TRY-токен из @AITeamVIPBot (обязателен)
+#  Доступ — OC4-TRY-токен из @AITeamVIPBot (обязателен)
 # ═══════════════════════════════════════════════════════════════
 # Фаза A: формат-проверка ДО любой установки. Полную крипто-проверку
 # подписи делаем после Шага 1 (там появляется node).
@@ -320,12 +320,12 @@ echo -e "${BOLD}${WHITE}🔑 Доступ — нужен токен из @AITeam
 echo ""
 echo -e "${DIM}   Доступ по токену (выдаётся после оплаты):${NC}"
 echo -e "   ${CYAN}1.${NC} Открой ${BOLD}@AITeamVIPBot${NC} в Telegram → /start"
-echo -e "   ${CYAN}2.${NC} Оплати по ссылке — бот пришлёт TRY-токен"
+echo -e "   ${CYAN}2.${NC} Оплати по ссылке — бот пришлёт новый OC4-TRY-токен"
 echo -e "   ${CYAN}3.${NC} Вставь токен сюда"
 echo ""
 if ! _trial_token_gate_format; then
   echo ""
-  err "Без токена установка невозможна. Оплати и получи TRY-токен в @AITeamVIPBot."
+  err "Без токена установка невозможна. Оплати и получи новый OC4-TRY-токен в @AITeamVIPBot."
   echo -e "${BOLD}${CYAN}      https://t.me/AITeamVIPBot${NC}"
   exit 1
 fi
@@ -450,11 +450,11 @@ echo ""
 echo -e "${DIM}   Проверяю подпись токена...${NC}"
 if _trial_token_verify_sig "$TRIAL_TOKEN"; then
   _trial_token_save_cache
-  ok "Токен подтверждён (TRY-тариф, TG ID ${TRIAL_TG_ID})"
+  ok "Токен подтверждён (OC4-TRY-тариф, TG ID ${TRIAL_TG_ID})"
 else
   echo ""
   err "Подпись токена не прошла проверку — повреждён, подделан или отозван."
-  echo -e "${DIM}   Получи свежий TRY-токен в @AITeamVIPBot и запусти снова.${NC}"
+  echo -e "${DIM}   Получи свежий OC4-TRY-токен в @AITeamVIPBot и запусти снова.${NC}"
   echo -e "${BOLD}${CYAN}      https://t.me/AITeamVIPBot${NC}"
   exit 1
 fi
@@ -574,20 +574,13 @@ ok "Telegram-бот @${username} подключён"
 # заодно анти-шаринг: allowlist на того, кому бот выдал токен.
 echo ""
 TG_USER_ID="$TRIAL_TG_ID"
-if [[ -z "$TG_USER_ID" ]]; then
-  # Fallback (на случай токена без TG) — спросим вручную.
-  echo -e "   ${BOLD}${WHITE}Твой Telegram user ID (чтобы бот сразу отвечал тебе):${NC}"
-  echo -e "   ${DIM}Узнать ID: напиши @userinfobot в Telegram. Можно Enter чтобы пропустить.${NC}"
-  read -r TG_USER_ID
-  TG_USER_ID=$(printf '%s' "$TG_USER_ID" | tr -cd '0-9')
+if [[ ! "$TG_USER_ID" =~ ^[0-9]+$ ]]; then
+  err "В проверенном OC4-TRY-токене нет корректного Telegram ID. Установка остановлена."
+  exit 1
 fi
-if [[ -n "$TG_USER_ID" ]]; then
-  openclaw config set channels.telegram.dmPolicy allowlist &>/dev/null || true
-  openclaw config set channels.telegram.allowFrom "[\"${TG_USER_ID}\"]" &>/dev/null || true
-  ok "Доступ настроен на твой Telegram (ID ${TG_USER_ID} из токена)"
-else
-  warn "TG ID неизвестен — при первом сообщении бот может попросить код подтверждения."
-fi
+openclaw config set channels.telegram.dmPolicy allowlist &>/dev/null || true
+openclaw config set channels.telegram.allowFrom "[\"${TG_USER_ID}\"]" &>/dev/null || true
+ok "Доступ настроен на твой Telegram (ID ${TG_USER_ID} из токена)"
 echo ""
 
 # ═══════════════════════════════════════════════════════════════

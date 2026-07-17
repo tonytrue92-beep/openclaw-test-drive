@@ -1,24 +1,24 @@
-# Бриф технарю — TRY-токены после оплаты (Prodamus) + @AITeamVIPBot
+# Бриф технарю — OC4-TRY-токены после оплаты (Prodamus) + @AITeamVIPBot
 
 ## Задача
 
-Бот `@AITeamVIPBot` должен выдавать **TRY-токены ПОСЛЕ успешной оплаты**
+Бот `@AITeamVIPBot` должен выдавать **OC4-TRY-токены ПОСЛЕ успешной оплаты**
 через **Prodamus** (платный вход в тест-драйв). Это новый тариф `TRY`
 рядом с существующими `VIP / STD / SUB / HRM`.
 
 Цель: тест-драйв даётся только заплатившим (квалифицирует лида). Ссылка
 на оплату — на сайте; токен прилетает в Telegram после оплаты.
 
-## Хорошая новость: ключ и механизм — те же
+## Ключ и механизм
 
-TRY использует **тот же Ed25519-ключ**, что VIP/STD/SUB/HRM. Менять
-ключи и публичный ключ в установщике НЕ нужно. Отличие только в payload
-(новый префикс `TRY`).
+TRY использует текущий Ed25519-ключ OC4, общий с VIP/STD/SUB/HRM. При
+ротации ключа бот и все установщики обновляются одной поставкой; v1/v2/v3
+токены больше не принимаются. Отличие TRY — в tier внутри подписанного payload.
 
 ## Формат токена
 
 ```
-TRY-<hash16>-<tg_id>-<подпись_b64url>
+OC4-TRY-<hash16>-<tg_id>-<подпись_b64url>
 ```
 
 - `hash16` — 16 символов `[A-F0-9]` (UPPERCASE hex). Привяжи к платежу:
@@ -34,7 +34,7 @@ TRY-<hash16>-<tg_id>-<подпись_b64url>
 Payload (UTF-8, ровно так, с разделителем `|`):
 
 ```
-TRY|<hash16>|<tg_id>
+OC4|TRY|<hash16>|<tg_id>
 ```
 
 Подпись тем же приватным ключом, что для остальных тарифов.
@@ -47,20 +47,20 @@ const crypto = require('crypto');
 function makeTryToken(tgId, orderId, privateKeyPem) {
   const hash16 = crypto.createHash('sha256')
     .update(String(orderId)).digest('hex').slice(0, 16).toUpperCase();
-  const payload = `TRY|${hash16}|${tgId}`;
+  const payload = `OC4|TRY|${hash16}|${tgId}`;
   const sig = crypto.sign(
     null,
     Buffer.from(payload, 'utf8'),
     crypto.createPrivateKey(privateKeyPem)
   );
-  return `TRY-${hash16}-${tgId}-${sig.toString('base64url')}`;
+  return `OC4-TRY-${hash16}-${tgId}-${sig.toString('base64url')}`;
 }
 ```
 
 Установщик проверяет это так (для справки, менять не нужно):
 
 ```js
-crypto.verify(null, Buffer.from(`TRY|${hash16}|${tgId}`), PUBLIC_KEY,
+crypto.verify(null, Buffer.from(`OC4|TRY|${hash16}|${tgId}`), PUBLIC_KEY,
               Buffer.from(sigB64, 'base64url'));
 ```
 
@@ -104,10 +104,10 @@ crypto.verify(null, Buffer.from(`TRY|${hash16}|${tgId}`), PUBLIC_KEY,
 
 macOS / Linux — вставь в Терминал:
 
-bash <(curl -fsSL https://raw.githubusercontent.com/tonytrue92-beep/openclaw-test-drive/main/scripts/install-trial.sh) --token TRY-XXXX...
+bash <(curl -fsSL https://raw.githubusercontent.com/tonytrue92-beep/openclaw-test-drive/main/scripts/install-trial.sh) --token OC4-TRY-XXXX...
 ```
 
-(подставь реальный токен вместо `TRY-XXXX...`).
+(подставь реальный токен вместо `OC4-TRY-XXXX...`).
 
 ## Проверки/нюансы
 
